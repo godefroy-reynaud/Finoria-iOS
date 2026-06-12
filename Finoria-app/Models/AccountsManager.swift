@@ -58,11 +58,24 @@ class AccountsManager {
 
 	/// Dernière erreur de persistance (pour affichage UI si nécessaire)
 	var lastPersistenceError: String?
-	
+
+	/// Jeton de version des données — incrémenté après chaque mutation persistée.
+	// WHY (FIX D): Depuis le retrait du tableau `accounts` re-fetché (qui rediffusait
+	// tout à chaque persist), AUCUNE propriété observée du manager ne changeait quand
+	// une transaction était ajoutée/modifiée/supprimée — et l'observation des relations
+	// inverses SwiftData (account.transactions) ne déclenche pas le re-render de façon
+	// fiable. Les helpers de lecture lisent ce jeton pendant l'évaluation du body :
+	// chaque persist() l'incrémente, ce qui invalide toutes les vues concernées.
+	// Chaîne restaurée : mutation → persist() → dataVersion+1 → @Observable → vue.
+	private(set) var dataVersion: Int = 0
+
 	/// Compte actuellement sélectionné (dérivé de selectedAccountId)
 	// WHY: Fetch ciblé (fetchLimit = 1) au lieu d'une recherche dans le tableau
 	// mémoire — SwiftData résout l'objet depuis son cache, pas de coût notable.
 	var selectedAccount: Account? {
+		// WHY (FIX D): enregistre la dépendance d'observation — tous les helpers
+		// de lecture (transactions(), getWidgetShortcuts()…) passent par ici.
+		_ = dataVersion
 		guard let id = selectedAccountId else { return nil }
 		var descriptor = FetchDescriptor<Account>(predicate: #Predicate { $0.id == id })
 		descriptor.fetchLimit = 1
@@ -106,6 +119,8 @@ class AccountsManager {
 			Self.logger.error("Échec sauvegarde SwiftData: \(error.localizedDescription)")
 			lastPersistenceError = error.localizedDescription
 		}
+		// WHY (FIX D): signale la mutation aux vues (voir doc de dataVersion).
+		dataVersion &+= 1
 	}
 
 	/// Premier compte (tri par nom), ou nil s'il n'en reste aucun
@@ -251,11 +266,15 @@ class AccountsManager {
 	// MARK: - Calculs (délégués à CalculationService)
 	
 	func totalNonPotential(for account: Account) -> Double {
-		CalculationService.totalNonPotential(transactions: account.transactions)
+		// WHY (FIX D): ces deux helpers reçoivent un compte externe (@Query du
+		// picker) sans passer par selectedAccount — dépendance enregistrée ici.
+		_ = dataVersion
+		return CalculationService.totalNonPotential(transactions: account.transactions)
 	}
-	
+
 	func totalPotential(for account: Account) -> Double {
-		CalculationService.totalPotential(transactions: account.transactions)
+		_ = dataVersion
+		return CalculationService.totalPotential(transactions: account.transactions)
 	}
 	
 	func availableYears() -> [Int] {
@@ -319,10 +338,35 @@ class AccountsManager {
 	}
 	
 	// MARK: - CSV (délégué à CSVService)
-	
-	func generateCSV() -> URL? {
-		guard let account = selectedAccount else { return nil }
-		return CSVService.generateCSV(transactions: account.transactions, accountName: account.name)
+
+	/// Indique qu'une génération d'export CSV est en cours (pilote le spinner de la toolbar).
+	private(set) var isExportingCSV = false
+
+	/// Démarre un export CSV : snapshot Sendable des transactions du compte sélectionné.
+	///
+	/// Retourne `nil` s'il n'y a aucun compte ou aucune transaction à exporter.
+	// WHY (FIX E): les @Model SwiftData doivent être lus sur le main actor — ce
+	// snapshot rapide en valeurs simples permet à `CSVExport` de faire la
+	// génération lourde (tri, formatage, écriture fichier) HORS du main actor,
+	// supprimant le gel de l'UI au moment du partage.
+	func beginCSVExport() -> (rows: [CSVService.ExportRow], accountName: String)? {
+		guard let account = selectedAccount, !account.transactions.isEmpty else { return nil }
+		isExportingCSV = true
+		let rows = account.transactions.map { transaction in
+			CSVService.ExportRow(
+				date: transaction.date,
+				amount: transaction.amount,
+				comment: transaction.comment,
+				potentiel: transaction.potentiel,
+				categoryLabel: transaction.displayCategoryLabel
+			)
+		}
+		return (rows, account.name)
+	}
+
+	/// Termine l'export CSV (masque le spinner).
+	func endCSVExport() {
+		isExportingCSV = false
 	}
 	
 	func importCSV(from url: URL) -> Int {
@@ -331,7 +375,7 @@ class AccountsManager {
 		for tx in imported {
 			if let importedName = tx.importedCategoryName,
 				let matchedCustom = account.customTransactionCategories.first(where: {
-					normalizeCategoryName($0.name) == normalizeCategoryName(importedName)
+					Self.normalizeCategoryName($0.name) == Self.normalizeCategoryName(importedName)
 				}) {
 				tx.customCategory = matchedCustom
 				tx.category = .other
@@ -423,24 +467,28 @@ class AccountsManager {
 	}
 	
 	/// Valide la sélection au retour au premier plan (changements CloudKit).
-	// WHY: Les vues @Query se rafraîchissent automatiquement depuis le store —
-	// il reste seulement à vérifier que le compte sélectionné existe toujours
-	// (il a pu être supprimé sur un autre appareil via CloudKit).
+	// WHY (FIX G): la condition couvre AUSSI le cas selectedAccountId == nil —
+	// sur un second appareil, CloudKit livre les comptes APRÈS le .onAppear de
+	// ContentView ; sans cela l'utilisateur restait sur un écran vide jusqu'à
+	// ouverture manuelle du picker.
 	func refreshFromStore() {
 		Self.logger.info("Rafraîchissement depuis le store (CloudKit sync)")
-		if selectedAccountId != nil && selectedAccount == nil {
+		if selectedAccount == nil {
 			selectedAccountId = firstAccount()?.id
 		}
+		// WHY (FIX D): les changements mergés depuis CloudKit doivent aussi
+		// invalider les vues qui lisent via les helpers du manager.
+		dataVersion &+= 1
 	}
 
 	private func relinkImportedTransactions(in account: Account, to customCategory: CustomTransactionCategory) {
-		let target = normalizeCategoryName(customCategory.name)
+		let target = Self.normalizeCategoryName(customCategory.name)
 		guard !target.isEmpty else { return }
 
 		for transaction in account.transactions {
 			guard transaction.customCategory == nil,
 				let importedName = transaction.importedCategoryName,
-				normalizeCategoryName(importedName) == target else {
+				Self.normalizeCategoryName(importedName) == target else {
 				continue
 			}
 
@@ -450,7 +498,10 @@ class AccountsManager {
 		}
 	}
 
-	private func normalizeCategoryName(_ value: String) -> String {
+	/// Normalisation canonique d'un nom de catégorie (trim + insensible casse/accents).
+	// WHY (FIX J): implémentation unique — TransactionCategoryPicker utilisait
+	// une copie identique, supprimée au profit de celle-ci.
+	static func normalizeCategoryName(_ value: String) -> String {
 		value
 			.trimmingCharacters(in: .whitespacesAndNewlines)
 			.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)

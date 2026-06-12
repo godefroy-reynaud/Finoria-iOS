@@ -389,31 +389,27 @@ struct TransactionCategoryPicker: View {
 		categoryPendingDeletion = nil
 	}
 
+	// WHY (FIX J): copie locale supprimée — utilise l'implémentation canonique
+	// AccountsManager.normalizeCategoryName (les deux étaient identiques).
 	private func validateCustomCategoryName(_ name: String, editingCategoryId: UUID?) -> String? {
-		let normalized = normalizeCategoryName(name)
+		let normalized = AccountsManager.normalizeCategoryName(name)
 		if normalized.isEmpty {
 			return "Le nom est obligatoire."
 		}
 
-		let builtInNames = Set(TransactionCategory.allCases.map { normalizeCategoryName($0.label) })
+		let builtInNames = Set(TransactionCategory.allCases.map { AccountsManager.normalizeCategoryName($0.label) })
 		if builtInNames.contains(normalized) {
 			return "Nom déjà utilisé."
 		}
 
 		let duplicate = customCategories.contains { customCategory in
-			normalizeCategoryName(customCategory.name) == normalized && customCategory.id != editingCategoryId
+			AccountsManager.normalizeCategoryName(customCategory.name) == normalized && customCategory.id != editingCategoryId
 		}
 		if duplicate {
 			return "Nom déjà utilisé."
 		}
 
 		return nil
-	}
-
-	private func normalizeCategoryName(_ name: String) -> String {
-		name
-			.trimmingCharacters(in: .whitespacesAndNewlines)
-			.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
 	}
 }
 

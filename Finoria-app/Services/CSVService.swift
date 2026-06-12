@@ -8,74 +8,104 @@
 import Foundation
 
 /// Service responsable de l'import et export CSV.
-/// Gère la sérialisation/désérialisation des transactions au format CSV.
+/// Gère la sérialisation/désérialisation des transactions au format CSV (RFC 4180).
 struct CSVService {
-	
+
+	// MARK: - Données d'export (Sendable)
+
+	/// Ligne d'export pré-extraite des modèles SwiftData.
+	// WHY (FIX E): Les @Model SwiftData ne sont pas Sendable et doivent être lus
+	// sur le main actor. Ce snapshot en valeurs simples permet de générer le CSV
+	// HORS du main actor, sans geler l'UI pendant la construction du fichier.
+	struct ExportRow: Sendable {
+		let date: Date?
+		let amount: Double
+		let comment: String
+		let potentiel: Bool
+		let categoryLabel: String
+	}
+
 	// MARK: - Export
-	
-	/// Génère un fichier CSV contenant les transactions fournies
+
+	/// Génère un fichier CSV à partir d'un snapshot de transactions.
 	/// - Parameters:
-	///   - transactions: Liste des transactions à exporter
+	///   - rows: Lignes pré-extraites (Sendable — peut s'exécuter hors main actor)
 	///   - accountName: Nom du compte (utilisé pour le nom du fichier)
 	/// - Returns: URL temporaire du fichier CSV généré, ou nil si erreur
-	static func generateCSV(transactions: [Transaction], accountName: String) -> URL? {
+	static func generateCSV(rows: [ExportRow], accountName: String) -> URL? {
 		// Tri des transactions par date décroissante
-		let sortedTransactions = transactions.sorted { tx1, tx2 in
-			if let date1 = tx1.date, let date2 = tx2.date {
+		let sortedRows = rows.sorted { row1, row2 in
+			if let date1 = row1.date, let date2 = row2.date {
 				return date1 > date2
-			} else if tx1.date != nil {
+			} else if row1.date != nil {
 				return true
 			} else {
 				return false
 			}
 		}
-		
-		guard !sortedTransactions.isEmpty else {
+
+		guard !sortedRows.isEmpty else {
 			print("⚠️ Aucune transaction à exporter")
 			return nil
 		}
-		
+
 		// Construction du CSV
 		var csvText = "Date,Type,Montant,Commentaire,Statut,Catégorie\n"
-		
+
 		let dateFormatter = DateFormatter()
 		dateFormatter.dateFormat = "dd/MM/yyyy"
 		dateFormatter.locale = Locale(identifier: "fr_FR")
-		
-		for transaction in sortedTransactions {
-			let dateString = transaction.date.map { dateFormatter.string(from: $0) } ?? "N/A"
-			let type = transaction.amount >= 0 ? "Revenu" : "Dépense"
-			let amount = String(format: "%.2f", abs(transaction.amount))
-			let comment = transaction.comment.replacingOccurrences(of: ",", with: ";")
-			let status = transaction.potentiel ? "Potentielle" : "Validée"
-			let category = transaction.displayCategoryLabel
-			
-			csvText += "\(dateString),\(type),\(amount),\(comment),\(status),\(category)\n"
+
+		for row in sortedRows {
+			let fields = [
+				row.date.map { dateFormatter.string(from: $0) } ?? "N/A",
+				row.amount >= 0 ? "Revenu" : "Dépense",
+				String(format: "%.2f", abs(row.amount)),
+				row.comment,
+				row.potentiel ? "Potentielle" : "Validée",
+				row.categoryLabel
+			]
+			// WHY (FIX B): échappement RFC 4180 de CHAQUE champ. L'ancien code
+			// remplaçait les virgules du commentaire par des points-virgules
+			// (perte de données) et n'échappait pas du tout la catégorie —
+			// une catégorie personnalisée contenant une virgule créait une
+			// colonne fantôme et corrompait toute la ligne.
+			csvText += fields.map(escapeCSVField).joined(separator: ",") + "\n"
 		}
-		
+
 		// Sauvegarde dans un fichier temporaire
 		let fileName = "\(accountName)_transactions_\(Date().timeIntervalSince1970).csv"
 		let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-		
+
 		do {
 			try csvText.write(to: tempURL, atomically: true, encoding: .utf8)
 			print("✅ CSV généré avec succès: \(tempURL.path)")
-			print("📊 \(sortedTransactions.count) transactions exportées")
+			print("📊 \(sortedRows.count) transactions exportées")
 			return tempURL
 		} catch {
 			print("❌ Erreur lors de la génération du CSV: \(error.localizedDescription)")
 			return nil
 		}
 	}
-	
+
+	/// Échappe un champ CSV selon RFC 4180 : entoure de guillemets tout champ
+	/// contenant une virgule, un guillemet ou un saut de ligne, et double
+	/// les guillemets internes (`"` → `""`).
+	private static func escapeCSVField(_ field: String) -> String {
+		guard field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") else {
+			return field
+		}
+		return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+	}
+
 	// MARK: - Import
-	
+
 	/// Parse un fichier CSV et retourne les transactions correspondantes
 	/// - Parameter url: URL du fichier CSV à importer
 	/// - Returns: Tableau de transactions parsées (vide si erreur ou fichier invalide)
 	static func importCSV(from url: URL) -> [Transaction] {
 		var importedTransactions: [Transaction] = []
-		
+
 		do {
 			// Accès sécurisé au fichier
 			guard url.startAccessingSecurityScopedResource() else {
@@ -83,58 +113,63 @@ struct CSVService {
 				return []
 			}
 			defer { url.stopAccessingSecurityScopedResource() }
-			
+
 			let content = try String(contentsOf: url, encoding: .utf8)
 			let lines = content.components(separatedBy: .newlines)
-			
+
+			// WHY (FIX I): formatter créé UNE seule fois par import —
+			// l'ancien code en créait un par ligne (coûteux sur de gros fichiers).
+			let dateFormatter = DateFormatter()
+			dateFormatter.dateFormat = "dd/MM/yyyy"
+			dateFormatter.locale = Locale(identifier: "fr_FR")
+
 			for line in lines.dropFirst() {
 				let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
 				guard !trimmedLine.isEmpty else { continue }
-				
-				let columns = trimmedLine.components(separatedBy: ",")
+
+				// WHY (FIX B): parsing avec gestion des champs entre guillemets
+				// (RFC 4180) au lieu d'un split naïf sur la virgule, qui coupait
+				// au milieu des champs échappés.
+				let columns = parseCSVLine(trimmedLine)
 				guard columns.count >= 5 else {
 					print("⚠️ Ligne invalide (colonnes insuffisantes): \(line)")
 					continue
 				}
-				
+
 				// Parse Date
 				let dateString = columns[0].trimmingCharacters(in: .whitespacesAndNewlines)
 				let date: Date?
 				if dateString == "N/A" {
 					date = nil
 				} else {
-					let formatter = DateFormatter()
-					formatter.dateFormat = "dd/MM/yyyy"
-					formatter.locale = Locale(identifier: "fr_FR")
-					date = formatter.date(from: dateString)
+					date = dateFormatter.date(from: dateString)
 				}
-				
+
 				// Parse Type
 				let typeString = columns[1].trimmingCharacters(in: .whitespacesAndNewlines)
 				let isExpense = (typeString == "Dépense")
-				
+
 				// Parse Montant
 				let montantString = columns[2].trimmingCharacters(in: .whitespacesAndNewlines)
 				guard var amount = Double(montantString) else {
 					print("⚠️ Montant invalide: \(montantString)")
 					continue
 				}
-				
+
 				// Appliquer le signe selon le type
 				if isExpense && amount > 0 {
 					amount = -amount
 				} else if !isExpense && amount < 0 {
 					amount = abs(amount)
 				}
-				
-				// Parse Commentaire
+
+				// Parse Commentaire (les virgules sont préservées grâce aux guillemets RFC 4180)
 				let comment = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
-					.replacingOccurrences(of: ";", with: ",")
-				
+
 				// Parse Statut
 				let statutString = columns[4].trimmingCharacters(in: .whitespacesAndNewlines)
 				let isPotentielle = (statutString == "Potentielle")
-				
+
 				// Parse Catégorie (colonne 6 si présente, sinon .other)
 				var category: TransactionCategory = .other
 				var importedCategoryName: String? = nil
@@ -147,7 +182,7 @@ struct CSVService {
 						importedCategoryName = categoryLabel
 					}
 				}
-				
+
 				let transaction = Transaction(
 					amount: amount,
 					comment: comment,
@@ -156,17 +191,58 @@ struct CSVService {
 					category: category,
 					importedCategoryName: importedCategoryName
 				)
-				
+
 				importedTransactions.append(transaction)
 				print("✅ Transaction parsée: \(comment) - \(amount)€")
 			}
-			
+
 			print("📊 Import terminé: \(importedTransactions.count) transactions parsées")
-			
+
 		} catch {
 			print("❌ Erreur lors de l'import CSV: \(error.localizedDescription)")
 		}
-		
+
 		return importedTransactions
+	}
+
+	/// Découpe une ligne CSV en champs en respectant les guillemets RFC 4180.
+	/// Gère les champs entre guillemets contenant des virgules et les guillemets
+	/// doublés (`""` → `"`).
+	private static func parseCSVLine(_ line: String) -> [String] {
+		var fields: [String] = []
+		var currentField = ""
+		var isInsideQuotes = false
+
+		let characters = Array(line)
+		var index = 0
+		while index < characters.count {
+			let character = characters[index]
+			if isInsideQuotes {
+				if character == "\"" {
+					if index + 1 < characters.count && characters[index + 1] == "\"" {
+						// Guillemet doublé à l'intérieur d'un champ → guillemet littéral
+						currentField.append("\"")
+						index += 1
+					} else {
+						isInsideQuotes = false
+					}
+				} else {
+					currentField.append(character)
+				}
+			} else {
+				switch character {
+				case "\"":
+					isInsideQuotes = true
+				case ",":
+					fields.append(currentField)
+					currentField = ""
+				default:
+					currentField.append(character)
+				}
+			}
+			index += 1
+		}
+		fields.append(currentField)
+		return fields
 	}
 }

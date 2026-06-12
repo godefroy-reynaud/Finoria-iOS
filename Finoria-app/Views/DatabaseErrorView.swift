@@ -9,7 +9,8 @@ import SwiftUI
 
 /// Vue affichée quand le conteneur SwiftData ne peut pas être initialisé correctement.
 ///
-/// Remplace `ContentView` dans le `WindowGroup` lorsque `FinoriaApp.initError` est non-nil.
+/// Remplace `ContentView` dans le `WindowGroup` lorsque l'initialisation du conteneur
+/// a échoué deux fois (CloudKit puis fallback local) — voir `FinoriaApp.initErrorMessage`.
 /// Affiche un message d'erreur clair et des suggestions de résolution pour l'utilisateur.
 struct DatabaseErrorView: View {
 	let errorMessage: String

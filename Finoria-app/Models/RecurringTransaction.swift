@@ -104,38 +104,38 @@ final class RecurringTransaction {
 	// MARK: - Calcul des prochaines occurrences
 	
 	/// Retourne toutes les dates d'occurrence entre deux dates
+	// WHY (FIX A): Chaque occurrence est calculée depuis la date d'ancrage (startDate),
+	// jamais en chaînant depuis l'occurrence précédente. Sinon le clamping de
+	// Calendar s'accumule : un loyer du 31 janvier devient 28 février (clampé),
+	// puis dérive définitivement au 28 mars, 28 avril… Avec l'ancrage, on obtient
+	// 31 janv → 28 févr → 31 mars → 30 avr → 31 mai (comportement attendu).
 	func occurrences(from startRange: Date, to endRange: Date) -> [Date] {
 		let calendar = Calendar.current
 		var dates: [Date] = []
-		var current = startDate
-		
-		// Avancer jusqu'au début de la plage
-		while current < startRange {
-			guard let next = nextDate(after: current, calendar: calendar) else { break }
-			current = next
+		var occurrenceIndex = 0
+
+		while let date = occurrenceDate(at: occurrenceIndex, calendar: calendar) {
+			if date > endRange { break }
+			if date >= startRange {
+				dates.append(date)
+			}
+			occurrenceIndex += 1
 		}
-		
-		// Collecter les dates dans la plage
-		while current <= endRange {
-			dates.append(current)
-			guard let next = nextDate(after: current, calendar: calendar) else { break }
-			current = next
-		}
-		
+
 		return dates
 	}
-	
-	/// Retourne la prochaine date après une date donnée selon la fréquence
-	private func nextDate(after date: Date, calendar: Calendar) -> Date? {
+
+	/// Date de la n-ième occurrence (0 = startDate), toujours calculée depuis l'ancrage
+	private func occurrenceDate(at index: Int, calendar: Calendar) -> Date? {
 		switch frequency {
 		case .daily:
-			return calendar.date(byAdding: .day, value: 1, to: date)
+			return calendar.date(byAdding: .day, value: index, to: startDate)
 		case .weekly:
-			return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
+			return calendar.date(byAdding: .weekOfYear, value: index, to: startDate)
 		case .monthly:
-			return calendar.date(byAdding: .month, value: 1, to: date)
+			return calendar.date(byAdding: .month, value: index, to: startDate)
 		case .yearly:
-			return calendar.date(byAdding: .year, value: 1, to: date)
+			return calendar.date(byAdding: .year, value: index, to: startDate)
 		}
 	}
 	

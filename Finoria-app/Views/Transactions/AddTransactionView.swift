@@ -37,7 +37,9 @@ struct AddTransactionView: View {
 	private var isEditMode: Bool { transactionToEdit != nil }
 
 	var body: some View {
-		NavigationView {
+		// WHY (FIX H): NavigationStack remplace NavigationView (déprécié) —
+		// aligné sur toutes les autres sheets de l'app.
+		NavigationStack {
 			Form {
 				Section("Type de transaction") {
 					Picker("Type", selection: $transactionType) {

@@ -77,21 +77,27 @@ extension View {
 
 // MARK: - Formatage de date pour en-têtes de section
 
+// WHY (FIX I): DateFormatter est coûteux à créer — l'ancien code en créait un
+// par en-tête de section À CHAQUE rendu de liste. Instance unique, configuration
+// figée (le formatage seul est thread-safe, et ces appels viennent du main thread).
+private let dayHeaderFormatter: DateFormatter = {
+	let formatter = DateFormatter()
+	formatter.locale = Locale(identifier: "fr_FR")
+	formatter.dateFormat = "EEEE d MMMM yyyy"
+	return formatter
+}()
+
 extension Date {
 	/// Formate la date pour les en-têtes de section groupées par jour.
 	/// "Aujourd'hui", "Hier", ou "Lundi 5 février 2026"
 	func dayHeaderFormatted() -> String {
 		let calendar = Calendar.current
-		let formatter = DateFormatter()
-		formatter.locale = Locale(identifier: "fr_FR")
-		
 		if calendar.isDateInToday(self) {
 			return "Aujourd'hui"
 		} else if calendar.isDateInYesterday(self) {
 			return "Hier"
 		} else {
-			formatter.dateFormat = "EEEE d MMMM yyyy"
-			return formatter.string(from: self).capitalized
+			return dayHeaderFormatter.string(from: self).capitalized
 		}
 	}
 }

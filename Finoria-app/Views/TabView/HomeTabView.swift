@@ -29,8 +29,18 @@ struct CSVExport: Transferable {
 
 	static var transferRepresentation: some TransferRepresentation {
 		FileRepresentation(exportedContentType: .commaSeparatedText) { export in
-			// Génération différée : le fichier n'existe qu'au moment du partage.
-			guard let url = await export.accountsManager.generateCSV() else {
+			// WHY (FIX E): l'ancienne version appelait generateCSV() sur le main
+			// actor — tri + formatage + écriture fichier gelaient l'UI plusieurs
+			// secondes. Désormais : 1) snapshot rapide des données sur le main
+			// actor, 2) génération lourde ici-même, dans cette closure @Sendable
+			// qui s'exécute en arrière-plan.
+			guard let snapshot = await export.accountsManager.beginCSVExport() else {
+				throw CSVExportError.generationFailed
+			}
+			defer {
+				Task { @MainActor in export.accountsManager.endCSVExport() }
+			}
+			guard let url = CSVService.generateCSV(rows: snapshot.rows, accountName: snapshot.accountName) else {
 				throw CSVExportError.generationFailed
 			}
 			return SentTransferredFile(url)
@@ -61,13 +71,21 @@ struct HomeTabView: View {
 										item: CSVExport(accountsManager: accountsManager),
 										preview: SharePreview("Export Finoria")
 									) {
-										Image(systemName: "square.and.arrow.up")
-											.imageScale(.large)
-											.padding(8)
+										// WHY (FIX E): spinner pendant la génération du CSV
+										// pour signaler que l'export est en cours.
+										if accountsManager.isExportingCSV {
+											ProgressView()
+												.scaleEffect(0.8)
+												.padding(8)
+										} else {
+											Image(systemName: "square.and.arrow.up")
+												.imageScale(.large)
+												.padding(8)
+										}
 									}
 									// WHY: Désactivé s'il n'y a rien à exporter — remplace
 									// l'ancienne alerte "Erreur d'export" (CSV vide → URL nil).
-									.disabled(accountsManager.transactions().isEmpty)
+									.disabled(accountsManager.transactions().isEmpty || accountsManager.isExportingCSV)
 									Button { showingDocumentPicker = true } label: {
 										Image(systemName: "square.and.arrow.down")
 											.imageScale(.large)
