@@ -46,9 +46,13 @@ struct RecurrenceEngine {
 				
 				for entry in pending {
 					let alreadyExists = account.transactions.contains { tx in
-						tx.sourceRecurringTransaction?.id == recurring.id &&
-						tx.date != nil &&
-						calendar.isDate(tx.date!, inSameDayAs: entry.date)
+						// WHY: Replaced force unwrap (!) with optional binding via if-let to prevent crashes.
+						// Safely unwraps tx.date before date comparison.
+						if let txDate = tx.date {
+							return tx.sourceRecurringTransaction?.id == recurring.id &&
+							calendar.isDate(txDate, inSameDayAs: entry.date)
+						}
+						return false
 					}
 					if !alreadyExists {
 						let transaction = entry.transaction

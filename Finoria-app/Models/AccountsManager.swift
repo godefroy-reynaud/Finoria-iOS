@@ -392,7 +392,11 @@ class AccountsManager: ObservableObject {
 	
 	func resumeRecurringTransaction(_ recurring: RecurringTransaction) {
 		let calendar = Calendar.current
-		let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+		// WHY: Replaced force unwrap with guard let to prevent runtime crashes if date calculation fails (e.g. edge cases)
+		guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())) else {
+			Self.logger.warning("Failed to calculate yesterday's date.")
+			return
+		}
 		recurring.isPaused = false
 		recurring.lastGeneratedDate = yesterday
 		persist()

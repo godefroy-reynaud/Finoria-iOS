@@ -45,7 +45,14 @@ struct CalculationService {
 	/// Calculates the total for a given year
 	static func totalForYear(_ year: Int, transactions: [Transaction]) -> Double {
 		transactions
-			.filter { !$0.potentiel && Calendar.current.component(.year, from: $0.date ?? Date()) == year }
+			.filter {
+				// WHY: Using guard let instead of falling back to Date() prevents masking missing date bugs.
+				guard !$0.potentiel, let date = $0.date else {
+					if !$0.potentiel { print("[WARN] Validated transaction missing date: \($0.id)") }
+					return false
+				}
+				return Calendar.current.component(.year, from: date) == year
+			}
 			.map { $0.amount }
 			.reduce(0, +)
 	}
@@ -110,13 +117,23 @@ struct CalculationService {
 		
 		if let year = year {
 			result = result.filter {
-				Calendar.current.component(.year, from: $0.date ?? Date()) == year
+				// WHY: Replaced date ?? Date() fallback with safe optional binding and warning log.
+				guard let date = $0.date else {
+					print("[WARN] Validated transaction missing date: \($0.id)")
+					return false
+				}
+				return Calendar.current.component(.year, from: date) == year
 			}
 		}
 		
 		if let month = month {
 			result = result.filter {
-				Calendar.current.component(.month, from: $0.date ?? Date()) == month
+				// WHY: Replaced date ?? Date() fallback with safe optional binding and warning log.
+				guard let date = $0.date else {
+					print("[WARN] Validated transaction missing date: \($0.id)")
+					return false
+				}
+				return Calendar.current.component(.month, from: date) == month
 			}
 		}
 		
