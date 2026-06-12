@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Vue principale de l'accueil affichant le solde, les cartes rapides et les raccourcis
 struct HomeView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	
 	// MARK: - State
 	@State private var showingAddWidgetSheet = false
@@ -55,7 +55,7 @@ struct HomeView: View {
 			ScrollView {
 				VStack(spacing: 24) {
 					// En-tête avec solde total (NavigationLink)
-					NavigationLink(destination: AllTransactionsView(accountsManager: accountsManager)) {
+					NavigationLink(destination: AllTransactionsView()) {
 						BalanceHeaderContent(
 							accountName: accountsManager.selectedAccount?.name,
 							totalCurrent: totalCurrent,
@@ -67,7 +67,6 @@ struct HomeView: View {
 					// Cartes rapides (mois + à venir)
 					HStack(spacing: 16) {
 						NavigationLink(destination: TransactionsListView(
-							accountsManager: accountsManager,
 							month: currentMonth,
 							year: currentYear
 						)) {
@@ -80,7 +79,7 @@ struct HomeView: View {
 						}
 						.buttonStyle(PlainButtonStyle())
 						
-						NavigationLink(destination: PotentialTransactionsView(accountsManager: accountsManager)) {
+						NavigationLink(destination: PotentialTransactionsView()) {
 							QuickCardContent(
 								icon: "cart",
 								iconColor: .orange,
@@ -135,16 +134,16 @@ struct HomeView: View {
 			ToastStackView(toasts: toasts, onDismiss: removeToast)
 		}
 		.sheet(isPresented: $showingAddWidgetSheet) {
-			AddWidgetShortcutView(accountsManager: accountsManager)
+			AddWidgetShortcutView()
 		}
 		.sheet(item: $shortcutToEdit) { shortcut in
-			AddWidgetShortcutView(accountsManager: accountsManager, shortcutToEdit: shortcut)
+			AddWidgetShortcutView(shortcutToEdit: shortcut)
 		}
 		.sheet(isPresented: $showingAddRecurringSheet) {
-			AddRecurringTransactionView(accountsManager: accountsManager)
+			AddRecurringTransactionView()
 		}
 		.sheet(item: $recurringToEdit) { recurring in
-			AddRecurringTransactionView(accountsManager: accountsManager, recurringToEdit: recurring)
+			AddRecurringTransactionView(recurringToEdit: recurring)
 		}
 		.alert("Supprimer ce raccourci ?", isPresented: $showingDeleteConfirmation) {
 			Button("Supprimer", role: .destructive) {
@@ -203,6 +202,7 @@ struct HomeView: View {
 
 #Preview {
 	NavigationStack {
-		HomeView(accountsManager: .preview)
+		HomeView()
 	}
+	.environment(AccountsManager.preview)
 }

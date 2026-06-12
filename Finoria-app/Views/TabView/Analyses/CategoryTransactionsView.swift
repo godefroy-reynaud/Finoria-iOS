@@ -10,7 +10,7 @@ import SwiftUI
 /// Affiche les transactions d'une catégorie donnée, regroupées par jour
 /// (même présentation que AllTransactionsView)
 struct CategoryTransactionsView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	let category: TransactionCategory
 	let month: Int
 	let year: Int
@@ -77,19 +77,19 @@ struct CategoryTransactionsView: View {
 		}
 		.navigationTitle(category.label)
 		.sheet(item: $transactionToEdit) { transaction in
-			AddTransactionView(accountsManager: accountsManager, transactionToEdit: transaction)
+			AddTransactionView(transactionToEdit: transaction)
 		}
 	}
-	
+
 }
 
 #Preview {
 	NavigationStack {
 		CategoryTransactionsView(
-			accountsManager: .preview,
 			category: .food,
 			month: 2,
 			year: 2026
 		)
 	}
+	.environment(AccountsManager.preview)
 }

@@ -9,25 +9,24 @@ import SwiftUI
 
 struct AddAccountSheet: View {
 	@Environment(\.dismiss) var dismiss
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	var onAccountCreated: (() -> Void)?
-	
+
 	// Compte à éditer (nil = nouveau compte)
 	var accountToEdit: Account? = nil
-	
+
 	// MARK: - Limites
 	private let maxNameLength = 15
 	private let maxDetailLength = 20
-	
+
 	@State private var name = ""
 	@State private var detail = ""
 	@State private var style: AccountStyle = .bank
 	@State private var hasManuallySelectedStyle = false
-	
+
 	private var isEditMode: Bool { accountToEdit != nil }
-	
-	init(accountsManager: AccountsManager, accountToEdit: Account? = nil, onAccountCreated: (() -> Void)? = nil) {
-		self.accountsManager = accountsManager
+
+	init(accountToEdit: Account? = nil, onAccountCreated: (() -> Void)? = nil) {
 		self.accountToEdit = accountToEdit
 		self.onAccountCreated = onAccountCreated
 	}

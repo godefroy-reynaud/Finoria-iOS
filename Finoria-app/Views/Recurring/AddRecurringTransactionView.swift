@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AddRecurringTransactionView: View {
 	@Environment(\.dismiss) var dismiss
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	
 	// Récurrence à éditer (nil = nouvelle récurrence)
 	var recurringToEdit: RecurringTransaction? = nil
@@ -86,7 +86,6 @@ struct AddRecurringTransactionView: View {
 				// MARK: - Sélecteur d'icône
 				Section("Catégorie") {
 					TransactionCategoryPicker(
-						accountsManager: accountsManager,
 						selectedStyle: $selectedCategory,
 						selectedCustomCategoryId: $selectedCustomCategoryId
 					) {
@@ -197,5 +196,6 @@ struct AddRecurringTransactionView: View {
 // MARK: - Preview
 
 #Preview {
-	AddRecurringTransactionView(accountsManager: .preview)
+	AddRecurringTransactionView()
+		.environment(AccountsManager.preview)
 }

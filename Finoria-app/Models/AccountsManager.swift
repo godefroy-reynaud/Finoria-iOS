@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import Observation
 import os.log
 
 /// Orchestrateur central de l'application.
@@ -23,7 +24,16 @@ import os.log
 /// - `RecurrenceEngine` pour le traitement des récurrences
 /// - `CalculationService` pour les calculs financiers
 /// - `CSVService` pour l'import/export CSV
-class AccountsManager: ObservableObject {
+// WHY: @MainActor garantit que toutes les mutations SwiftData et l'état observé
+// se font sur le main thread (requis par ModelContext.mainContext et SwiftUI).
+// Rend aussi la classe implicitement Sendable (nécessaire pour Transferable/ShareLink).
+//
+// WHY: @Observable (iOS 17) remplace ObservableObject : SwiftUI ne redessine que
+// les vues qui lisent réellement la propriété modifiée, au lieu de redessiner
+// toutes les vues abonnées à chaque changement de n'importe quelle @Published.
+@MainActor
+@Observable
+class AccountsManager {
 	
 	// MARK: - Logger
 	
@@ -36,26 +46,33 @@ class AccountsManager: ObservableObject {
 	
 	let modelContext: ModelContext
 	
-	// MARK: - État publié (Single Source of Truth)
-	
-	@Published private(set) var accounts: [Account] = []
-	@Published var selectedAccountId: UUID? {
+	// MARK: - État observé (Single Source of Truth)
+
+	// WHY: Avec @Observable, plus besoin de @Published — toute propriété stockée
+	// est automatiquement suivie, avec un tracking par propriété (plus fin).
+	// WHY: Le tableau `accounts` en mémoire a été supprimé — les listes de comptes
+	// sont lues par @Query directement dans les vues (lazy loading SwiftData).
+	var selectedAccountId: UUID? {
 		didSet { saveSelectedAccountId() }
 	}
-	
+
 	/// Dernière erreur de persistance (pour affichage UI si nécessaire)
-	@Published var lastPersistenceError: String?
+	var lastPersistenceError: String?
 	
 	/// Compte actuellement sélectionné (dérivé de selectedAccountId)
+	// WHY: Fetch ciblé (fetchLimit = 1) au lieu d'une recherche dans le tableau
+	// mémoire — SwiftData résout l'objet depuis son cache, pas de coût notable.
 	var selectedAccount: Account? {
-		accounts.first { $0.id == selectedAccountId }
+		guard let id = selectedAccountId else { return nil }
+		var descriptor = FetchDescriptor<Account>(predicate: #Predicate { $0.id == id })
+		descriptor.fetchLimit = 1
+		return (try? modelContext.fetch(descriptor))?.first
 	}
 	
 	// MARK: - Init
 	
 	init(modelContext: ModelContext) {
 		self.modelContext = modelContext
-		fetchAccounts()
 		selectedAccountId = loadSelectedAccountId()
 	}
 	
@@ -74,11 +91,13 @@ class AccountsManager: ObservableObject {
 	
 	// MARK: - Persistance interne
 	
-	/// Sauvegarde le contexte SwiftData et rafraîchit la liste des comptes.
+	/// Sauvegarde le contexte SwiftData.
 	///
 	/// CloudKit : `modelContext.save()` déclenche la synchronisation automatique.
 	/// En cas de conflit, SwiftData utilise la politique de merge par défaut (server wins).
 	/// Les erreurs sont loguées via os.log pour le diagnostic.
+	// WHY: Plus de re-fetch manuel après chaque save — les vues @Query et les
+	// @Model observés par SwiftUI se mettent à jour automatiquement.
 	private func persist() {
 		do {
 			try modelContext.save()
@@ -87,44 +106,29 @@ class AccountsManager: ObservableObject {
 			Self.logger.error("Échec sauvegarde SwiftData: \(error.localizedDescription)")
 			lastPersistenceError = error.localizedDescription
 		}
-		fetchAccounts()
 	}
-	
-	/// Recharge la liste des comptes depuis SwiftData et valide la sélection.
-	///
-	/// Appelé après chaque mutation et au retour au premier plan
-	/// pour récupérer les changements synchronisés via CloudKit.
-	private func fetchAccounts() {
-		let descriptor = FetchDescriptor<Account>(sortBy: [SortDescriptor(\.name)])
-		do {
-			accounts = try modelContext.fetch(descriptor)
-			lastPersistenceError = nil
-		} catch {
-			Self.logger.error("Échec chargement des comptes: \(error.localizedDescription)")
-			lastPersistenceError = error.localizedDescription
-			// Ne pas écraser accounts avec [] en cas d'erreur temporaire
-			// pour éviter de montrer un écran vide alors que les données existent
-		}
-		
-		// Vérifier que le compte sélectionné existe toujours
-		if let id = selectedAccountId, !accounts.contains(where: { $0.id == id }) {
-			// Le compte a été supprimé (ex: sync CloudKit) → réinitialiser
-			selectedAccountId = accounts.first?.id
-		}
+
+	/// Premier compte (tri par nom), ou nil s'il n'en reste aucun
+	private func firstAccount() -> Account? {
+		var descriptor = FetchDescriptor<Account>(sortBy: [SortDescriptor(\.name)])
+		descriptor.fetchLimit = 1
+		return (try? modelContext.fetch(descriptor))?.first
 	}
 	
 	// MARK: - Persistance du compte sélectionné (UserDefaults — préférence UI)
 	
+	// WHY: Clé centralisée dans AppStorageKeys — une faute de frappe dans une
+	// clé dupliquée serait un bug silencieux (sélection jamais restaurée).
 	private func saveSelectedAccountId() {
 		if let id = selectedAccountId {
-			UserDefaults.standard.set(id.uuidString, forKey: "lastSelectedAccountId")
+			UserDefaults.standard.set(id.uuidString, forKey: AppStorageKeys.lastSelectedAccountId)
 		} else {
-			UserDefaults.standard.removeObject(forKey: "lastSelectedAccountId")
+			UserDefaults.standard.removeObject(forKey: AppStorageKeys.lastSelectedAccountId)
 		}
 	}
-	
+
 	private func loadSelectedAccountId() -> UUID? {
-		guard let idString = UserDefaults.standard.string(forKey: "lastSelectedAccountId") else { return nil }
+		guard let idString = UserDefaults.standard.string(forKey: AppStorageKeys.lastSelectedAccountId) else { return nil }
 		return UUID(uuidString: idString)
 	}
 	
@@ -139,11 +143,14 @@ class AccountsManager: ObservableObject {
 		let wasSelected = selectedAccountId == account.id
 		modelContext.delete(account) // cascade : supprime transactions, raccourcis, récurrences
 		persist()
-		
-		if accounts.isEmpty {
+
+		// WHY: Re-fetch du premier compte restant (plus de tableau en mémoire)
+		// pour basculer la sélection ou la vider s'il n'y a plus de compte.
+		let remaining = firstAccount()
+		if remaining == nil {
 			selectedAccountId = nil
 		} else if wasSelected {
-			selectedAccountId = accounts.first?.id
+			selectedAccountId = remaining?.id
 		}
 	}
 	
@@ -159,10 +166,6 @@ class AccountsManager: ObservableObject {
 			modelContext.delete(transaction)
 		}
 		persist()
-	}
-	
-	func getAllAccounts() -> [Account] {
-		accounts
 	}
 	
 	// MARK: - Gestion des transactions
@@ -406,7 +409,10 @@ class AccountsManager: ObservableObject {
 	/// Traite toutes les récurrences : génère les transactions à venir et valide celles du passé.
 	/// Appelé au lancement, au retour au premier plan, et après ajout/modification de récurrence.
 	func processRecurringTransactions() {
-		if RecurrenceEngine.processAll(accounts: accounts, context: modelContext) {
+		// WHY: Fetch ponctuel pour le traitement — les comptes ne sont plus
+		// conservés en mémoire dans le manager.
+		let allAccounts = (try? modelContext.fetch(FetchDescriptor<Account>())) ?? []
+		if RecurrenceEngine.processAll(accounts: allAccounts, context: modelContext) {
 			persist()
 		}
 	}
@@ -416,11 +422,15 @@ class AccountsManager: ObservableObject {
 		persist()
 	}
 	
-	/// Rafraîchit les données depuis le store SwiftData.
-	/// Appelé quand l'app revient au premier plan pour récupérer les changements CloudKit.
+	/// Valide la sélection au retour au premier plan (changements CloudKit).
+	// WHY: Les vues @Query se rafraîchissent automatiquement depuis le store —
+	// il reste seulement à vérifier que le compte sélectionné existe toujours
+	// (il a pu être supprimé sur un autre appareil via CloudKit).
 	func refreshFromStore() {
 		Self.logger.info("Rafraîchissement depuis le store (CloudKit sync)")
-		fetchAccounts()
+		if selectedAccountId != nil && selectedAccount == nil {
+			selectedAccountId = firstAccount()?.id
+		}
 	}
 
 	private func relinkImportedTransactions(in account: Account, to customCategory: CustomTransactionCategory) {

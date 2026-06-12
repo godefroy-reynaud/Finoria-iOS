@@ -24,7 +24,9 @@ struct FinoriaApp: App {
 	let modelContainer: ModelContainer
 	
 	/// Gestionnaire des comptes (source de vérité)
-	@StateObject private var accountsManager: AccountsManager
+	// WHY: @State remplace @StateObject pour un objet @Observable —
+	// SwiftUI garde l'instance en vie pour la durée de vie de la scène.
+	@State private var accountsManager: AccountsManager
 	
 	init() {
 		// 1. Créer le conteneur SwiftData (CloudKit activé)
@@ -50,7 +52,7 @@ struct FinoriaApp: App {
 		
 		// 2. Créer l'AccountsManager avec le contexte du conteneur
 		let manager = AccountsManager(modelContext: container.mainContext)
-		_accountsManager = StateObject(wrappedValue: manager)
+		_accountsManager = State(initialValue: manager)
 		
 		// 3. Notifications
 		NotificationManager.shared.requestNotificationPermission()
@@ -64,7 +66,10 @@ struct FinoriaApp: App {
 	
 	var body: some Scene {
 		WindowGroup {
-			ContentView(accountsManager: accountsManager)
+			ContentView()
+				// WHY: Injection par environnement (.environment, pas .environmentObject) —
+				// toutes les vues descendantes lisent via @Environment(AccountsManager.self).
+				.environment(accountsManager)
 		}
 		.modelContainer(modelContainer)
 	}

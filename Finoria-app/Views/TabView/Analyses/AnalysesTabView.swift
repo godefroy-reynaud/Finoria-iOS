@@ -9,33 +9,33 @@ import SwiftUI
 
 /// Wrapper de l'onglet Analyses avec NavigationStack et toolbar
 struct AnalysesTabView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var showingAccountPicker = false
-	
+
 	var body: some View {
 		NavigationStack {
 			Group {
 				if accountsManager.selectedAccount != nil {
-					AnalysesView(accountsManager: accountsManager)
+					AnalysesView()
 						.navigationBarTitleDisplayMode(.large)
 						.navigationDestination(for: CategoryDetailRoute.self) { route in
 							CategoryTransactionsView(
-								accountsManager: accountsManager,
 								category: route.category,
 								month: route.month,
 								year: route.year
 							)
 						}
 				} else {
-					NoAccountView(accountsManager: accountsManager)
+					NoAccountView()
 				}
 			}
 			.navigationTitle("Analyses")
-			.accountPickerToolbar(isPresented: $showingAccountPicker, accountsManager: accountsManager)
+			.accountPickerToolbar(isPresented: $showingAccountPicker)
 		}
 	}
 }
 
 #Preview {
-	AnalysesTabView(accountsManager: .preview)
+	AnalysesTabView()
+		.environment(AccountsManager.preview)
 }

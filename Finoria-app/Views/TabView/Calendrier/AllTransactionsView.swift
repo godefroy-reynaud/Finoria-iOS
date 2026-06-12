@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AllTransactionsView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	var embedded: Bool = false // Si true, pas de titre ni toolbar (utilisé dans CalendrierTabView)
 	
 	@State private var showingAccountPicker = false
@@ -88,13 +88,13 @@ struct AllTransactionsView: View {
 				}
 		}
 		.sheet(isPresented: $showingAccountPicker) {
-			AccountPickerView(accountsManager: accountsManager)
+			AccountPickerView()
 		}
 		.sheet(item: $transactionToEdit) { transaction in
-			AddTransactionView(accountsManager: accountsManager, transactionToEdit: transaction)
+			AddTransactionView(transactionToEdit: transaction)
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
-			AddTransactionView(accountsManager: accountsManager)
+			AddTransactionView()
 		}
 	
 	}

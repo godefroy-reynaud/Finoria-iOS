@@ -9,24 +9,25 @@ import SwiftUI
 
 /// Main view for the Future/Potential transactions tab with toolbar
 struct FutureTabView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var showingAccountPicker = false
-	
+
 	var body: some View {
 		NavigationStack {
 			Group {
 				if accountsManager.selectedAccount != nil {
-					PotentialTransactionsView(accountsManager: accountsManager)
+					PotentialTransactionsView()
 				} else {
-					NoAccountView(accountsManager: accountsManager)
+					NoAccountView()
 				}
 			}
 			.navigationTitle("Futur")
-			.accountPickerToolbar(isPresented: $showingAccountPicker, accountsManager: accountsManager)
+			.accountPickerToolbar(isPresented: $showingAccountPicker)
 		}
 	}
 }
 
 #Preview {
-	FutureTabView(accountsManager: .preview)
+	FutureTabView()
+		.environment(AccountsManager.preview)
 }

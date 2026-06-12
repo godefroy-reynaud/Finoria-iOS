@@ -31,10 +31,11 @@ extension View {
 // MARK: - Toolbar Account Picker
 
 /// Ajoute le bouton de sélection de compte dans la toolbar + la sheet associée
+// WHY: Plus besoin de transmettre accountsManager — AccountPickerView le lit
+// directement depuis l'environnement (@Observable + .environment).
 struct AccountPickerToolbarModifier: ViewModifier {
-	@ObservedObject var accountsManager: AccountsManager
 	@Binding var isPresented: Bool
-	
+
 	func body(content: Content) -> some View {
 		content
 			.toolbar {
@@ -48,15 +49,15 @@ struct AccountPickerToolbarModifier: ViewModifier {
 				}
 			}
 			.sheet(isPresented: $isPresented) {
-				AccountPickerView(accountsManager: accountsManager)
+				AccountPickerView()
 			}
 	}
 }
 
 extension View {
 	/// Ajoute la toolbar avec le bouton de sélection de compte
-	func accountPickerToolbar(isPresented: Binding<Bool>, accountsManager: AccountsManager) -> some View {
-		modifier(AccountPickerToolbarModifier(accountsManager: accountsManager, isPresented: isPresented))
+	func accountPickerToolbar(isPresented: Binding<Bool>) -> some View {
+		modifier(AccountPickerToolbarModifier(isPresented: isPresented))
 	}
 }
 

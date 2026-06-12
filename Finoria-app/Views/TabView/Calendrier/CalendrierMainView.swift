@@ -9,24 +9,25 @@ import SwiftUI
 
 /// Vue principale de l'onglet Calendrier avec toolbar
 struct CalendrierMainView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var showingAccountPicker = false
-	
+
 	var body: some View {
 		NavigationStack {
 			Group {
 				if accountsManager.selectedAccount != nil {
-					CalendrierTabView(accountsManager: accountsManager)
+					CalendrierTabView()
 				} else {
-					NoAccountView(accountsManager: accountsManager)
+					NoAccountView()
 						.navigationTitle("Calendrier")
 				}
 			}
-			.accountPickerToolbar(isPresented: $showingAccountPicker, accountsManager: accountsManager)
+			.accountPickerToolbar(isPresented: $showingAccountPicker)
 		}
 	}
 }
 
 #Preview {
-	CalendrierMainView(accountsManager: .preview)
+	CalendrierMainView()
+		.environment(AccountsManager.preview)
 }

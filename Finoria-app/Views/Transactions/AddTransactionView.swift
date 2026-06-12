@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AddTransactionView: View {
 	@Environment(\.dismiss) var dismiss
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 
 	// Transaction à éditer (nil = nouvelle transaction)
 	var transactionToEdit: Transaction? = nil
@@ -76,7 +76,6 @@ struct AddTransactionView: View {
 
 				Section("Catégorie") {
 					TransactionCategoryPicker(
-						accountsManager: accountsManager,
 						selectedStyle: $selectedCategory,
 						selectedCustomCategoryId: $selectedCustomCategoryId
 					) {

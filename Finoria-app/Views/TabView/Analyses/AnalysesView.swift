@@ -12,22 +12,21 @@ import SwiftUI
 /// Répartition des dépenses ou revenus par catégorie
 /// avec graphique camembert et liste détaillée, navigable par mois
 struct AnalysesView: View {
-	@ObservedObject var accountsManager: AccountsManager
-	
+	@Environment(AccountsManager.self) private var accountsManager
+
 	@State private var analysisType: AnalysisType = .expenses
 	@State private var selectedSlice: TransactionCategory?
-	
+
 	/// Mois et année actuellement sélectionnés
 	@State private var selectedMonth: Int
 	@State private var selectedYear: Int
 	@State private var showingAddTransactionSheet = false
-	
+
 	/// Mois/année courants (pour limiter la navigation au présent)
 	private let currentMonth: Int
 	private let currentYear: Int
-	
-	init(accountsManager: AccountsManager) {
-		self.accountsManager = accountsManager
+
+	init() {
 		let now = Date()
 		let calendar = Calendar.current
 		let m = calendar.component(.month, from: now)
@@ -146,7 +145,6 @@ struct AnalysesView: View {
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
 			AddTransactionView(
-				accountsManager: accountsManager,
 				initialTransactionType: analysisType == .income ? .income : .expense
 			)
 		}
@@ -229,6 +227,7 @@ struct AnalysesView: View {
 
 #Preview {
 	NavigationStack {
-		AnalysesView(accountsManager: .preview)
+		AnalysesView()
 	}
+	.environment(AccountsManager.preview)
 }

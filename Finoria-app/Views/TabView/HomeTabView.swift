@@ -6,15 +6,44 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
+
+// MARK: - Export CSV (Transferable)
+
+/// Erreur levée si la génération du CSV échoue au moment du partage.
+enum CSVExportError: Error {
+	case generationFailed
+}
+
+/// Représente l'export CSV du compte sélectionné pour `ShareLink`.
+///
+// WHY: Remplace la présentation manuelle d'UIActivityViewController via la hiérarchie
+// de fenêtres UIKit (fragile, cassait en multitâche iPad). Le CSV est généré
+// À LA DEMANDE — dans la closure `exporting`, exécutée uniquement quand l'utilisateur
+// déclenche le partage — et non au rendu de la vue, ce qui corrige le bug
+// de sheet blanche au premier lancement.
+struct CSVExport: Transferable {
+	// WHY: AccountsManager est @MainActor donc implicitement Sendable —
+	// requis car la closure `exporting` est @Sendable.
+	let accountsManager: AccountsManager
+
+	static var transferRepresentation: some TransferRepresentation {
+		FileRepresentation(exportedContentType: .commaSeparatedText) { export in
+			// Génération différée : le fichier n'existe qu'au moment du partage.
+			guard let url = await export.accountsManager.generateCSV() else {
+				throw CSVExportError.generationFailed
+			}
+			return SentTransferredFile(url)
+		}
+	}
+}
 
 /// Vue principale de l'onglet Home avec toolbar et gestion CSV
 struct HomeTabView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var showingAccountPicker = false
 	@State private var showingDocumentPicker = false
 	@State private var importedCount: Int = 0
-	@State private var showExportSuccessAlert = false
-	@State private var showExportErrorAlert = false
 	@State private var showImportSuccessAlert = false
 	@State private var showImportErrorAlert = false
 	
@@ -22,16 +51,23 @@ struct HomeTabView: View {
 		NavigationStack {
 			Group {
 				if accountsManager.selectedAccount != nil {
-					HomeView(accountsManager: accountsManager)
+					HomeView()
 						.navigationBarTitleDisplayMode(.inline)
 						.toolbar {
 							ToolbarItem(placement: .navigationBarLeading) {
 								HStack(spacing: 3) {
-									Button { shareCSV() } label: {
+									// WHY: ShareLink natif (ancrage popover iPad géré par le système).
+									ShareLink(
+										item: CSVExport(accountsManager: accountsManager),
+										preview: SharePreview("Export Finoria")
+									) {
 										Image(systemName: "square.and.arrow.up")
 											.imageScale(.large)
 											.padding(8)
 									}
+									// WHY: Désactivé s'il n'y a rien à exporter — remplace
+									// l'ancienne alerte "Erreur d'export" (CSV vide → URL nil).
+									.disabled(accountsManager.transactions().isEmpty)
 									Button { showingDocumentPicker = true } label: {
 										Image(systemName: "square.and.arrow.down")
 											.imageScale(.large)
@@ -42,16 +78,6 @@ struct HomeTabView: View {
 						}
 						.sheet(isPresented: $showingDocumentPicker) {
 							DocumentPicker { url in importCSV(from: url) }
-						}
-						.alert("Export réussi", isPresented: $showExportSuccessAlert) {
-							Button("OK", role: .cancel) {}
-						} message: {
-							Text("Fichier CSV exporté avec succès.")
-						}
-						.alert("Erreur d'export", isPresented: $showExportErrorAlert) {
-							Button("OK", role: .cancel) {}
-						} message: {
-							Text("Impossible de générer le fichier CSV.")
 						}
 						.alert("Import réussi", isPresented: $showImportSuccessAlert) {
 							Button("OK", role: .cancel) {}
@@ -64,38 +90,11 @@ struct HomeTabView: View {
 							Text("Aucune transaction n'a pu être importée. Vérifiez le format du fichier CSV.")
 						}
 				} else {
-					NoAccountView(accountsManager: accountsManager)
+					NoAccountView()
 				}
 			}
-			.accountPickerToolbar(isPresented: $showingAccountPicker, accountsManager: accountsManager)
+			.accountPickerToolbar(isPresented: $showingAccountPicker)
 		}
-	}
-	
-	// MARK: - Export CSV (présentation UIKit directe pour éviter le bug de sheet blanche au 1er lancement)
-	private func shareCSV() {
-		guard let url = accountsManager.generateCSV() else {
-			showExportErrorAlert = true
-			return
-		}
-		
-		let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-		
-		guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-			  let rootVC = windowScene.windows.first?.rootViewController else { return }
-		
-		// Trouver le VC le plus haut dans la pile de présentation
-		var topVC = rootVC
-		while let presented = topVC.presentedViewController {
-			topVC = presented
-		}
-		
-		// Support iPad (popover)
-		activityVC.popoverPresentationController?.sourceView = topVC.view
-		activityVC.popoverPresentationController?.sourceRect = CGRect(
-			x: topVC.view.bounds.midX, y: 0, width: 0, height: 0
-		)
-		
-		topVC.present(activityVC, animated: true)
 	}
 	
 	// MARK: - Import CSV
@@ -111,5 +110,6 @@ struct HomeTabView: View {
 }
 
 #Preview {
-	HomeTabView(accountsManager: .preview)
+	HomeTabView()
+		.environment(AccountsManager.preview)
 }

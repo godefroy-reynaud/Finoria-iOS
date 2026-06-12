@@ -6,11 +6,17 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AccountPickerView: View {
 	@Environment(\.dismiss) var dismiss
-	@ObservedObject var accountsManager: AccountsManager
-	
+	@Environment(AccountsManager.self) private var accountsManager
+
+	// WHY: @Query lit les comptes directement depuis SwiftData (lazy loading,
+	// mise à jour automatique y compris après une sync CloudKit) — remplace
+	// le tableau en mémoire que AccountsManager rechargeait manuellement.
+	@Query(sort: \Account.name) private var accounts: [Account]
+
 	@State private var showingAddAccount = false
 	@State private var accountToEdit: Account? = nil
 	@State private var accountToReset: Account? = nil
@@ -19,7 +25,7 @@ struct AccountPickerView: View {
 	var body: some View {
 		NavigationStack {
 				List {
-					ForEach(accountsManager.getAllAccounts()) { account in
+					ForEach(accounts) { account in
 						AccountCardView(
 							account: account,
 							solde: accountsManager.totalNonPotential(for: account),
@@ -96,12 +102,12 @@ struct AccountPickerView: View {
 				}
 			}
 			.sheet(isPresented: $showingAddAccount) {
-				AddAccountSheet(accountsManager: accountsManager) {
+				AddAccountSheet {
 					dismiss()
 				}
 			}
 			.sheet(item: $accountToEdit) { account in
-				AddAccountSheet(accountsManager: accountsManager, accountToEdit: account)
+				AddAccountSheet(accountToEdit: account)
 			}
 			.alert("Réinitialiser ce compte ?", isPresented: $showingResetConfirmation) {
 				Button("Réinitialiser", role: .destructive) {

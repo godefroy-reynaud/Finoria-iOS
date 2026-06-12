@@ -15,7 +15,7 @@ enum CalendrierViewMode: String, CaseIterable {
 
 /// Vue de contenu du calendrier (sans navigation wrapping)
 struct CalendrierTabView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var selectedMode: CalendrierViewMode = .jour
 	@State private var showingAddTransactionSheet = false
 	
@@ -47,25 +47,25 @@ struct CalendrierTabView: View {
 			} else {
 				switch selectedMode {
 				case .jour:
-					AllTransactionsView(accountsManager: accountsManager, embedded: true)
+					AllTransactionsView(embedded: true)
 				case .mois:
-					CalendrierMonthsContentView(accountsManager: accountsManager)
+					CalendrierMonthsContentView()
 				case .annee:
-					CalendrierYearsContentView(accountsManager: accountsManager)
+					CalendrierYearsContentView()
 				}
 			}
 		}
 		.adaptiveGroupedBackground()
 		.navigationTitle("Calendrier")
 		.sheet(isPresented: $showingAddTransactionSheet) {
-			AddTransactionView(accountsManager: accountsManager)
+			AddTransactionView()
 		}
 		.navigationDestination(for: CalendrierRoute.self) { route in
 			switch route {
 			case .months(let year):
-				MonthsView(accountsManager: accountsManager, year: year)
+				MonthsView(year: year)
 			case .transactions(let month, let year):
-				TransactionsListView(accountsManager: accountsManager, month: month, year: year)
+				TransactionsListView(month: month, year: year)
 			}
 		}
 	}
@@ -73,7 +73,7 @@ struct CalendrierTabView: View {
 
 // MARK: - Vue Années (contenu uniquement, triées du plus récent au plus ancien)
 private struct CalendrierYearsContentView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	
 	var body: some View {
 		List {
@@ -94,7 +94,7 @@ private struct CalendrierYearsContentView: View {
 
 // MARK: - Vue Mois (contenu uniquement, tous les mois de toutes les années, triés du plus récent)
 private struct CalendrierMonthsContentView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	
 	private var monthsWithData: [(id: String, year: Int, month: Int, total: Double)] {
 		var result: [(id: String, year: Int, month: Int, total: Double)] = []

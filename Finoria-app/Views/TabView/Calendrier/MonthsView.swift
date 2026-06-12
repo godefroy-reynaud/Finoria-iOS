@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct MonthsView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	var year: Int
 	@State private var showingAccountPicker = false
-	
+
 	var body: some View {
 		if accountsManager.transactions().isEmpty {
-			CalendrierTabView(accountsManager: accountsManager)
+			CalendrierTabView()
 		} else {
 			List {
 				// Tri du plus récent (décembre) au plus ancien (janvier)
@@ -44,7 +44,7 @@ struct MonthsView: View {
 				}
 			}
 			.sheet(isPresented: $showingAccountPicker) {
-				AccountPickerView(accountsManager: accountsManager)
+				AccountPickerView()
 			}
 		}
 	}

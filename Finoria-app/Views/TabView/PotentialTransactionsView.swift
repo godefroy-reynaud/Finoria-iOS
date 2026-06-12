@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PotentialTransactionsView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@State private var showingAddTransactionSheet = false
 	@State private var transactionToEdit: Transaction? = nil
 	@State private var transactionToDelete: Transaction? = nil
@@ -72,10 +72,10 @@ struct PotentialTransactionsView: View {
 		}
 		.navigationTitle("Futur")
 		.sheet(isPresented: $showingAddTransactionSheet) {
-			AddTransactionView(accountsManager: accountsManager, initialIsPotentiel: true)
+			AddTransactionView(initialIsPotentiel: true)
 		}
 		.sheet(item: $transactionToEdit) { transaction in
-			AddTransactionView(accountsManager: accountsManager, transactionToEdit: transaction)
+			AddTransactionView(transactionToEdit: transaction)
 		}
 		.alert("Supprimer cette transaction ?", isPresented: $showDeleteConfirmation) {
 			Button("Annuler", role: .cancel) {

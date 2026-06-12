@@ -30,7 +30,8 @@ enum CloudKitService {
 	private static let container = CKContainer(identifier: "iCloud.com.godefroyinformatique.GDF-app")
 	
 	/// Clé UserDefaults pour éviter de recréer la subscription à chaque lancement
-	private static let subscriptionSavedKey = "ck_announcements_subscription_saved"
+	// WHY: Référence la constante centralisée AppStorageKeys (une seule définition).
+	private static let subscriptionSavedKey = AppStorageKeys.cloudKitAnnouncementsSubscriptionSaved
 	
 	// MARK: - Subscription Push Notifications
 	

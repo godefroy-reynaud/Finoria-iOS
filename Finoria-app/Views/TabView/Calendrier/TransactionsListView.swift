@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TransactionsListView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	var month: Int? = nil
 	var year: Int? = nil
 	@State private var showingAccountPicker = false
@@ -61,13 +61,13 @@ struct TransactionsListView: View {
 			}
 		}
 		.sheet(isPresented: $showingAccountPicker) {
-			AccountPickerView(accountsManager: accountsManager)
+			AccountPickerView()
 		}
 		.sheet(item: $transactionToEdit) { transaction in
-			AddTransactionView(accountsManager: accountsManager, transactionToEdit: transaction)
+			AddTransactionView(transactionToEdit: transaction)
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
-			AddTransactionView(accountsManager: accountsManager)
+			AddTransactionView()
 		}
 	}
 	

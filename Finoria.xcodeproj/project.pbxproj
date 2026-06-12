@@ -22,6 +22,7 @@
 		F810E30C2E44D4F100C2DFA9 /* AccountPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30B2E44D4F100C2DFA9 /* AccountPickerView.swift */; };
 		F810E30E2E45331900C2DFA9 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30D2E45331900C2DFA9 /* HomeView.swift */; };
 		F810E3102E46067700C2DFA9 /* WidgetShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30F2E46067700C2DFA9 /* WidgetShortcut.swift */; };
+		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F810E3142E46082900C2DFA9 /* AddWidgetShortcutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E3132E46082900C2DFA9 /* AddWidgetShortcutView.swift */; };
 		F812E1FA2CC7BCFF00619857 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F812E1F92CC7BCFF00619857 /* LaunchScreen.storyboard */; };
 		F8388E732F349A380081F2F9 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8388E722F349A380081F2F9 /* Account.swift */; };
@@ -103,6 +104,7 @@
 		F810E30B2E44D4F100C2DFA9 /* AccountPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountPickerView.swift; sourceTree = "<group>"; };
 		F810E30D2E45331900C2DFA9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		F810E30F2E46067700C2DFA9 /* WidgetShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetShortcut.swift; sourceTree = "<group>"; };
+		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F810E3132E46082900C2DFA9 /* AddWidgetShortcutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWidgetShortcutView.swift; sourceTree = "<group>"; };
 		F812E1F92CC7BCFF00619857 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		F812E1FB2CC828DF00619857 /* Finoria-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Finoria-Info.plist"; sourceTree = "<group>"; };
@@ -202,6 +204,7 @@
 				F842F8C52CBD3AD3007D1A54 /* Transaction.swift */,
 				F810E2EE2E422F1E00C2DFA9 /* AccountsManager.swift */,
 				F810E30F2E46067700C2DFA9 /* WidgetShortcut.swift */,
+				F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -595,6 +598,7 @@
 				F8388EB42F3E580C0081F2F9 /* AnalysesPieChart.swift in Sources */,
 				F8388EA62F3DE67B0081F2F9 /* CategoryBreakdownRow.swift in Sources */,
 				F810E3102E46067700C2DFA9 /* WidgetShortcut.swift in Sources */,
+				F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */,
 				F800A3F72E5C72F200918507 /* ToastCard.swift in Sources */,
 				F8388EAA2F3DF5470081F2F9 /* CategoryTransactionsView.swift in Sources */,
 				F8ACBAB22F68B3620074CE1B /* CustomTransactionCategory.swift in Sources */,

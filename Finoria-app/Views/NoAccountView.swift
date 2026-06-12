@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct NoAccountView: View {
-	@ObservedObject var accountsManager: AccountsManager
 	@State private var showingAccountPicker = false
 	
 	var body: some View {
@@ -29,7 +28,7 @@ struct NoAccountView: View {
 					.cornerRadius(12)
 			}
 			.sheet(isPresented: $showingAccountPicker) {
-				AccountPickerView(accountsManager: accountsManager)
+				AccountPickerView()
 			}
 		}
 		.padding()

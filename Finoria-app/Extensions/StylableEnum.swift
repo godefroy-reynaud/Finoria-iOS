@@ -127,7 +127,7 @@ struct AccountCategoryPicker<Style: StylableEnum>: View {
 /// Grille paginée de sélection de catégorie de transaction.
 /// Étend le comportement existant avec les catégories personnalisées + bouton d'ajout.
 struct TransactionCategoryPicker: View {
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	@Binding var selectedStyle: TransactionCategory
 	@Binding var selectedCustomCategoryId: UUID?
 	var onManualSelection: (() -> Void)? = nil
@@ -147,12 +147,10 @@ struct TransactionCategoryPicker: View {
 	@State private var showingDeleteCategoryAlert = false
 
 	init(
-		accountsManager: AccountsManager,
 		selectedStyle: Binding<TransactionCategory>,
 		selectedCustomCategoryId: Binding<UUID?> = .constant(nil),
 		onManualSelection: (() -> Void)? = nil
 	) {
-		self.accountsManager = accountsManager
 		self._selectedStyle = selectedStyle
 		self._selectedCustomCategoryId = selectedCustomCategoryId
 		self.onManualSelection = onManualSelection

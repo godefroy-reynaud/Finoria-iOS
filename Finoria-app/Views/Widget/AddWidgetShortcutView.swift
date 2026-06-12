@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AddWidgetShortcutView: View {
 	@Environment(\.dismiss) var dismiss
-	@ObservedObject var accountsManager: AccountsManager
+	@Environment(AccountsManager.self) private var accountsManager
 	
 	// Raccourci à éditer (nil = nouveau raccourci)
 	var shortcutToEdit: WidgetShortcut? = nil
@@ -69,7 +69,6 @@ struct AddWidgetShortcutView: View {
 				// MARK: - Sélecteur de catégorie
 				Section("Catégorie") {
 					TransactionCategoryPicker(
-						accountsManager: accountsManager,
 						selectedStyle: $selectedCategory,
 						selectedCustomCategoryId: $selectedCustomCategoryId
 					) {

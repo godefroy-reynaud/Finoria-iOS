@@ -6,16 +6,24 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Vue racine de l'application avec TabView principale
 struct ContentView: View {
-	@ObservedObject var accountsManager: AccountsManager
+	// WHY: @Environment(Type.self) remplace @ObservedObject — l'objet @Observable
+	// est injecté par FinoriaApp via .environment(accountsManager).
+	@Environment(AccountsManager.self) private var accountsManager
+
+	// WHY: @Query remplace accountsManager.getAllAccounts() — lecture lazy
+	// directement depuis SwiftData, utilisée pour l'auto-sélection du premier compte.
+	@Query(sort: \Account.name) private var accounts: [Account]
 	@State private var showingAddTransactionSheet = false
 	@State private var tabSelection: TabItem = .home
 	@Environment(\.scenePhase) private var scenePhase
 	
 	// MARK: - Welcome Sheet (premier lancement)
-	@AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
+	// WHY: Clé centralisée dans AppStorageKeys (évite les typos silencieuses).
+	@AppStorage(AppStorageKeys.hasSeenWelcome) private var hasSeenWelcome = false
 	@State private var showWelcomeSheet = false
 	
 	// MARK: - CloudKit Alert
@@ -31,28 +39,28 @@ struct ContentView: View {
 		TabView(selection: $tabSelection) {
 			// Onglet Home
 			Tab(value: TabItem.home) {
-				HomeTabView(accountsManager: accountsManager)
+				HomeTabView()
 			} label: {
 				Label("Accueil", systemImage: "house")
 			}
-			
+
 			// Onglet Analyses
 			Tab(value: TabItem.analyses) {
-				AnalysesTabView(accountsManager: accountsManager)
+				AnalysesTabView()
 			} label: {
 				Label("Analyses", systemImage: "chart.pie")
 			}
-			
+
 			// Onglet Calendrier
 			Tab(value: TabItem.calendrier) {
-				CalendrierMainView(accountsManager: accountsManager)
+				CalendrierMainView()
 			} label: {
 				Label("Calendrier", systemImage: "calendar")
 			}
-			
+
 			// Onglet Futur
 			Tab(value: TabItem.futur) {
-				FutureTabView(accountsManager: accountsManager)
+				FutureTabView()
 			} label: {
 				Label("Futur", systemImage: "clock.arrow.circlepath")
 			}
@@ -79,13 +87,13 @@ struct ContentView: View {
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
 			if accountsManager.selectedAccount != nil {
-				AddTransactionView(accountsManager: accountsManager)
+				AddTransactionView()
 			}
 		}
 		.onAppear {
 			// Auto-sélection du premier compte si aucun n'est sélectionné ou si le compte n'existe plus
 			if accountsManager.selectedAccount == nil {
-				accountsManager.selectedAccountId = accountsManager.getAllAccounts().first?.id
+				accountsManager.selectedAccountId = accounts.first?.id
 			}
 			// Générer les transactions récurrentes à venir / valider celles du jour
 			accountsManager.processRecurringTransactions()
@@ -134,5 +142,6 @@ struct ContentView: View {
 }
 
 #Preview {
-	ContentView(accountsManager: .preview)
+	ContentView()
+		.environment(AccountsManager.preview)
 }
