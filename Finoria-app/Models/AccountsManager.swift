@@ -26,7 +26,6 @@ import os.log
 /// - `CSVService` pour l'import/export CSV
 // WHY: @MainActor garantit que toutes les mutations SwiftData et l'état observé
 // se font sur le main thread (requis par ModelContext.mainContext et SwiftUI).
-// Rend aussi la classe implicitement Sendable (nécessaire pour Transferable/ShareLink).
 //
 // WHY: @Observable (iOS 17) remplace ObservableObject : SwiftUI ne redessine que
 // les vues qui lisent réellement la propriété modifiée, au lieu de redessiner
@@ -339,19 +338,14 @@ class AccountsManager {
 	
 	// MARK: - CSV (délégué à CSVService)
 
-	/// Indique qu'une génération d'export CSV est en cours (pilote le spinner de la toolbar).
-	private(set) var isExportingCSV = false
-
-	/// Démarre un export CSV : snapshot Sendable des transactions du compte sélectionné.
+	/// Snapshot Sendable des transactions du compte sélectionné pour la génération CSV.
 	///
 	/// Retourne `nil` s'il n'y a aucun compte ou aucune transaction à exporter.
-	// WHY (FIX E): les @Model SwiftData doivent être lus sur le main actor — ce
-	// snapshot rapide en valeurs simples permet à `CSVExport` de faire la
-	// génération lourde (tri, formatage, écriture fichier) HORS du main actor,
-	// supprimant le gel de l'UI au moment du partage.
-	func beginCSVExport() -> (rows: [CSVService.ExportRow], accountName: String)? {
+	// WHY: les @Model SwiftData doivent être lus sur le main actor — ce snapshot
+	// rapide en valeurs simples permet de générer le CSV hors du main actor
+	// (Task.detached dans HomeTabView) sans bloquer l'UI.
+	func csvExportSnapshot() -> (rows: [CSVService.ExportRow], accountName: String)? {
 		guard let account = selectedAccount, !account.transactions.isEmpty else { return nil }
-		isExportingCSV = true
 		let rows = account.transactions.map { transaction in
 			CSVService.ExportRow(
 				date: transaction.date,
@@ -362,11 +356,6 @@ class AccountsManager {
 			)
 		}
 		return (rows, account.name)
-	}
-
-	/// Termine l'export CSV (masque le spinner).
-	func endCSVExport() {
-		isExportingCSV = false
 	}
 	
 	func importCSV(from url: URL) -> Int {

@@ -6,47 +6,6 @@
 //
 
 import SwiftUI
-import UniformTypeIdentifiers
-
-// MARK: - Export CSV (Transferable)
-
-/// Erreur levée si la génération du CSV échoue au moment du partage.
-enum CSVExportError: Error {
-	case generationFailed
-}
-
-/// Représente l'export CSV du compte sélectionné pour `ShareLink`.
-///
-// WHY: Remplace la présentation manuelle d'UIActivityViewController via la hiérarchie
-// de fenêtres UIKit (fragile, cassait en multitâche iPad). Le CSV est généré
-// À LA DEMANDE — dans la closure `exporting`, exécutée uniquement quand l'utilisateur
-// déclenche le partage — et non au rendu de la vue, ce qui corrige le bug
-// de sheet blanche au premier lancement.
-struct CSVExport: Transferable {
-	// WHY: AccountsManager est @MainActor donc implicitement Sendable —
-	// requis car la closure `exporting` est @Sendable.
-	let accountsManager: AccountsManager
-
-	static var transferRepresentation: some TransferRepresentation {
-		FileRepresentation(exportedContentType: .commaSeparatedText) { export in
-			// WHY (FIX E): l'ancienne version appelait generateCSV() sur le main
-			// actor — tri + formatage + écriture fichier gelaient l'UI plusieurs
-			// secondes. Désormais : 1) snapshot rapide des données sur le main
-			// actor, 2) génération lourde ici-même, dans cette closure @Sendable
-			// qui s'exécute en arrière-plan.
-			guard let snapshot = await export.accountsManager.beginCSVExport() else {
-				throw CSVExportError.generationFailed
-			}
-			defer {
-				Task { @MainActor in export.accountsManager.endCSVExport() }
-			}
-			guard let url = CSVService.generateCSV(rows: snapshot.rows, accountName: snapshot.accountName) else {
-				throw CSVExportError.generationFailed
-			}
-			return SentTransferredFile(url)
-		}
-	}
-}
 
 /// Vue principale de l'onglet Home avec toolbar et gestion CSV
 struct HomeTabView: View {
@@ -56,7 +15,18 @@ struct HomeTabView: View {
 	@State private var importedCount: Int = 0
 	@State private var showImportSuccessAlert = false
 	@State private var showImportErrorAlert = false
-	
+	@State private var csvURL: URL? = nil
+
+	// WHY: combinaison account + dataVersion comme identifiant de tâche — la tâche
+	// redémarre dès qu'un compte est changé (persistentModelID change) OU qu'une
+	// transaction est modifiée/ajoutée/supprimée (dataVersion s'incrémente dans
+	// persist()). Le CSV est ainsi toujours à jour et ShareLink s'ouvre
+	// instantanément car le fichier est déjà prêt quand l'utilisateur appuie.
+	private var csvTaskID: String {
+		let accountPart = accountsManager.selectedAccount?.persistentModelID.hashValue.description ?? "none"
+		return "\(accountPart)-\(accountsManager.dataVersion)"
+	}
+
 	var body: some View {
 		NavigationStack {
 			Group {
@@ -66,26 +36,21 @@ struct HomeTabView: View {
 						.toolbar {
 							ToolbarItem(placement: .navigationBarLeading) {
 								HStack(spacing: 3) {
-									// WHY: ShareLink natif (ancrage popover iPad géré par le système).
-									ShareLink(
-										item: CSVExport(accountsManager: accountsManager),
-										preview: SharePreview("Export Finoria")
-									) {
-										// WHY (FIX E): spinner pendant la génération du CSV
-										// pour signaler que l'export est en cours.
-										if accountsManager.isExportingCSV {
-											ProgressView()
-												.scaleEffect(0.8)
-												.padding(8)
-										} else {
+									if let url = csvURL {
+										ShareLink(
+											item: url,
+											preview: SharePreview("Export Finoria")
+										) {
 											Image(systemName: "square.and.arrow.up")
 												.imageScale(.large)
 												.padding(8)
 										}
+									} else {
+										Image(systemName: "square.and.arrow.up")
+											.imageScale(.large)
+											.padding(8)
+											.foregroundStyle(.tertiary)
 									}
-									// WHY: Désactivé s'il n'y a rien à exporter — remplace
-									// l'ancienne alerte "Erreur d'export" (CSV vide → URL nil).
-									.disabled(accountsManager.transactions().isEmpty || accountsManager.isExportingCSV)
 									Button { showingDocumentPicker = true } label: {
 										Image(systemName: "square.and.arrow.down")
 											.imageScale(.large)
@@ -93,6 +58,16 @@ struct HomeTabView: View {
 									}
 								}
 							}
+						}
+						// WHY: task(id:) annule et relance la génération dès que csvTaskID
+						// change (account ou données). Le snapshot se fait sur le main actor
+						// (ici, dans la task qui hérite du contexte @MainActor de la vue),
+						// puis la génération lourde part dans un Task.detached pour ne pas
+						// bloquer l'UI. L'ancien csvURL est conservé jusqu'à ce que le
+						// nouveau soit prêt — pas de flash "bouton désactivé" pendant la
+						// brève régénération.
+						.task(id: csvTaskID) {
+							await prepareCSV()
 						}
 						.sheet(isPresented: $showingDocumentPicker) {
 							DocumentPicker { url in importCSV(from: url) }
@@ -114,8 +89,22 @@ struct HomeTabView: View {
 			.accountPickerToolbar(isPresented: $showingAccountPicker)
 		}
 	}
-	
+
+	// MARK: - Export CSV
+
+	private func prepareCSV() async {
+		guard let snapshot = accountsManager.csvExportSnapshot() else {
+			csvURL = nil
+			return
+		}
+		let newURL = await Task.detached(priority: .utility) {
+			CSVService.generateCSV(rows: snapshot.rows, accountName: snapshot.accountName)
+		}.value
+		csvURL = newURL
+	}
+
 	// MARK: - Import CSV
+
 	private func importCSV(from url: URL) {
 		let count = accountsManager.importCSV(from: url)
 		importedCount = count
