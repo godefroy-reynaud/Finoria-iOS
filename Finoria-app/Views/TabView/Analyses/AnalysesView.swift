@@ -15,7 +15,8 @@ struct AnalysesView: View {
 	@Environment(AccountsManager.self) private var accountsManager
 
 	@State private var analysisType: AnalysisType = .expenses
-	@State private var selectedSlice: TransactionCategory?
+	/// Catégorie sélectionnée dans le camembert, identifiée par sa clé de regroupement.
+	@State private var selectedSlice: String?
 
 	/// Mois et année actuellement sélectionnés
 	@State private var selectedMonth: Int
@@ -76,14 +77,18 @@ struct AnalysesView: View {
 	}
 	
 	private var categoryData: [CategoryData] {
-		var grouped: [TransactionCategory: (total: Double, count: Int)] = [:]
-		for transaction in filteredTransactions {
-			let absAmount = abs(transaction.amount)
-			let existing = grouped[transaction.category] ?? (total: 0, count: 0)
-			grouped[transaction.category] = (total: existing.total + absAmount, count: existing.count + 1)
+		// Regroupe par catégorie effective de la transaction (personnalisée si
+		// présente, sinon intégrée) : chaque catégorie personnalisée a désormais
+		// sa propre part au lieu d'être fondue dans « Autre ».
+		let grouped = Dictionary(grouping: filteredTransactions) { CategoryData.groupKey(for: $0) }
+		return grouped.values.map { transactions in
+			CategoryData(
+				representative: transactions[0],
+				total: transactions.reduce(0) { $0 + abs($1.amount) },
+				count: transactions.count
+			)
 		}
-		return grouped.map { CategoryData(category: $0.key, total: $0.value.total, count: $0.value.count) }
-			.sorted { $0.total > $1.total }
+		.sorted { $0.total > $1.total }
 	}
 	
 	private var totalAmount: Double {
@@ -94,7 +99,7 @@ struct AnalysesView: View {
 		guard totalAmount > 0 else { return categoryData }
 		let minValue = totalAmount * 0.01
 		return categoryData.map {
-			CategoryData(category: $0.category, total: max($0.total, minValue), count: $0.count)
+			CategoryData(representative: $0.representative, total: max($0.total, minValue), count: $0.count)
 		}
 	}
 	
@@ -127,12 +132,12 @@ struct AnalysesView: View {
 				
 				Section {
 					ForEach(categoryData) { item in
-						NavigationLink(value: CategoryDetailRoute(category: item.category, month: selectedMonth, year: selectedYear)) {
-							CategoryBreakdownRow(item: item, totalAmount: totalAmount, isSelected: selectedSlice == item.category)
+						NavigationLink(value: CategoryDetailRoute(category: item.category, customCategoryId: item.customCategoryId, month: selectedMonth, year: selectedYear)) {
+							CategoryBreakdownRow(item: item, totalAmount: totalAmount, isSelected: selectedSlice == item.id)
 						}
 						.listRowBackground(
-							selectedSlice == item.category
-								? item.category.color.opacity(0.12)
+							selectedSlice == item.id
+								? item.color.opacity(0.12)
 								: Color(UIColor.secondarySystemGroupedBackground)
 						)
 					}

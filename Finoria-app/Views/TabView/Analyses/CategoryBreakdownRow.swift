@@ -22,11 +22,11 @@ struct CategoryBreakdownRow: View {
 	var body: some View {
 		HStack(spacing: 12) {
 			// Icône de la catégorie
-			StyleIconView(style: item.category, size: 40)
-			
+			CategoryIconView(icon: item.icon, color: item.color, size: 40)
+
 			// Nom de la catégorie + nombre de transactions
 			VStack(alignment: .leading, spacing: 2) {
-				Text(item.category.label)
+				Text(item.label)
 					.font(.subheadline.weight(.medium))
 				Text("\(item.count) transaction\(item.count > 1 ? "s" : "")")
 					.font(.caption)

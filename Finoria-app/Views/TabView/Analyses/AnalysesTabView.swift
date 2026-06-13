@@ -21,6 +21,7 @@ struct AnalysesTabView: View {
 						.navigationDestination(for: CategoryDetailRoute.self) { route in
 							CategoryTransactionsView(
 								category: route.category,
+								customCategoryId: route.customCategoryId,
 								month: route.month,
 								year: route.year
 							)

@@ -15,7 +15,7 @@ struct AnalysesPieChart: View {
 	let total: Double
 	let displayTotal: Double
 	let analysisType: AnalysisType
-	@Binding var selectedSlice: TransactionCategory?
+	@Binding var selectedSlice: String?
 	
 	// MARK: - Body
 	
@@ -26,18 +26,18 @@ struct AnalysesPieChart: View {
 				innerRadius: .ratio(0.6),
 				angularInset: 1.5
 			)
-			.foregroundStyle(item.category.color)
-			.opacity(selectedSlice == nil || selectedSlice == item.category ? 1 : 0.4)
+			.foregroundStyle(item.color)
+			.opacity(selectedSlice == nil || selectedSlice == item.id ? 1 : 0.4)
 		}
 		.chartBackground { _ in
 			VStack(spacing: 2) {
 				if let selected = selectedSlice,
-				   let data = categoryData.first(where: { $0.category == selected }) {
-					StyleIconView(style: selected, size: 28)
+				   let data = categoryData.first(where: { $0.id == selected }) {
+					CategoryIconView(icon: data.icon, color: data.color, size: 28)
 					Text(data.total, format: .currency(code: "EUR"))
 						.font(.title3.weight(.bold))
 						.minimumScaleFactor(0.6)
-					Text(selected.label)
+					Text(data.label)
 						.font(.caption)
 						.foregroundStyle(.secondary)
 				} else {
@@ -90,13 +90,13 @@ struct AnalysesPieChart: View {
 		}
 	}
 	
-	/// Trouve la catégorie correspondant à une valeur cumulée dans le graphique
-	private func findCategory(for value: Double) -> TransactionCategory? {
+	/// Trouve la catégorie (sa clé) correspondant à une valeur cumulée dans le graphique
+	private func findCategory(for value: Double) -> String? {
 		var cumulative: Double = 0
 		for item in chartData {
 			cumulative += item.total
 			if value <= cumulative {
-				return item.category
+				return item.id
 			}
 		}
 		return nil
