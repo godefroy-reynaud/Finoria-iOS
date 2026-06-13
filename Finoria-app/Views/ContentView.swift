@@ -18,6 +18,7 @@ struct ContentView: View {
 	// directement depuis SwiftData, utilisée pour l'auto-sélection du premier compte.
 	@Query(sort: \Account.name) private var accounts: [Account]
 	@State private var showingAddTransactionSheet = false
+	@State private var addTransactionAsPotential = false
 	@State private var tabSelection: TabItem = .home
 	@Environment(\.scenePhase) private var scenePhase
 	
@@ -77,6 +78,7 @@ struct ContentView: View {
 			if newValue == .add {
 				// Ouvrir la feuille d'ajout de transaction si un compte est sélectionné
 				if accountsManager.selectedAccount != nil {
+					addTransactionAsPotential = oldValue == .futur
 					showingAddTransactionSheet = true
 				}
 				// Revenir immédiatement à l'onglet précédent
@@ -87,7 +89,7 @@ struct ContentView: View {
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
 			if accountsManager.selectedAccount != nil {
-				AddTransactionView()
+				AddTransactionView(initialIsPotentiel: addTransactionAsPotential)
 			}
 		}
 		.onAppear {
