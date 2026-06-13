@@ -37,23 +37,15 @@ struct ContentView: View {
 	}
 	
 	var body: some View {
-		TabView(selection: Binding(
-			get: { tabSelection },
-			set: { newValue in
-				if newValue == .add {
-					if accountsManager.selectedAccount != nil {
-						addTransactionAsPotential = tabSelection == .futur
-						showingAddTransactionSheet = true
-					}
-					// tabSelection ne passe jamais à .add : évite l'état "search" du TabView
-				} else {
-					tabSelection = newValue
-				}
-			}
-		)) {
+		TabView(selection: $tabSelection) {
 			// Onglet Home
 			Tab(value: TabItem.home) {
 				HomeTabView()
+					.sheet(isPresented: $showingAddTransactionSheet) {
+						if accountsManager.selectedAccount != nil {
+							AddTransactionView(initialIsPotentiel: addTransactionAsPotential)
+						}
+					}
 			} label: {
 				Label("Accueil", systemImage: "house")
 			}
@@ -86,9 +78,15 @@ struct ContentView: View {
 				Label("", systemImage: "plus.circle.fill")
 			}
 		}
-		.sheet(isPresented: $showingAddTransactionSheet) {
-			if accountsManager.selectedAccount != nil {
-				AddTransactionView(initialIsPotentiel: addTransactionAsPotential)
+		.onChange(of: tabSelection) { oldValue, newValue in
+			if newValue == .add {
+				if accountsManager.selectedAccount != nil {
+					addTransactionAsPotential = oldValue == .futur
+					showingAddTransactionSheet = true
+				}
+				DispatchQueue.main.async {
+					tabSelection = oldValue
+				}
 			}
 		}
 		.onAppear {
