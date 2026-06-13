@@ -16,6 +16,7 @@ struct HomeTabView: View {
 	@State private var showImportSuccessAlert = false
 	@State private var showImportErrorAlert = false
 	@State private var csvURL: URL? = nil
+	@State private var showNoTransactionAlert = false
 
 	// WHY: combinaison account + dataVersion comme identifiant de tâche — la tâche
 	// redémarre dès qu'un compte est changé (persistentModelID change) OU qu'une
@@ -46,10 +47,12 @@ struct HomeTabView: View {
 												.padding(8)
 										}
 									} else {
-										Image(systemName: "square.and.arrow.up")
-											.imageScale(.large)
-											.padding(8)
-											.foregroundStyle(.tertiary)
+										Button { showNoTransactionAlert = true } label: {
+											Image(systemName: "square.and.arrow.up")
+												.imageScale(.large)
+												.padding(8)
+										}
+										.foregroundStyle(.tertiary)
 									}
 									Button { showingDocumentPicker = true } label: {
 										Image(systemName: "square.and.arrow.down")
@@ -76,6 +79,11 @@ struct HomeTabView: View {
 							Button("OK", role: .cancel) {}
 						} message: {
 							Text("\(importedCount) transaction(s) importée(s) avec succès.")
+						}
+						.alert("Aucune transaction", isPresented: $showNoTransactionAlert) {
+							Button("OK", role: .cancel) {}
+						} message: {
+							Text("Ce compte ne contient aucune transaction à exporter.")
 						}
 						.alert("Erreur d'import", isPresented: $showImportErrorAlert) {
 							Button("OK", role: .cancel) {}

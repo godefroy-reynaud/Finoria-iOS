@@ -21,7 +21,6 @@ struct CSVService {
 		let date: Date?
 		let amount: Double
 		let comment: String
-		let potentiel: Bool
 		let categoryLabel: String
 	}
 
@@ -50,7 +49,7 @@ struct CSVService {
 		}
 
 		// Construction du CSV
-		var csvText = "Date,Type,Montant,Commentaire,Statut,Catégorie\n"
+		var csvText = "Date,Type,Montant,Commentaire,Catégorie\n"
 
 		let dateFormatter = DateFormatter()
 		dateFormatter.dateFormat = "dd/MM/yyyy"
@@ -62,7 +61,6 @@ struct CSVService {
 				row.amount >= 0 ? "Revenu" : "Dépense",
 				String(format: "%.2f", abs(row.amount)),
 				row.comment,
-				row.potentiel ? "Potentielle" : "Validée",
 				row.categoryLabel
 			]
 			// WHY (FIX B): échappement RFC 4180 de CHAQUE champ. L'ancien code
@@ -131,7 +129,7 @@ struct CSVService {
 				// (RFC 4180) au lieu d'un split naïf sur la virgule, qui coupait
 				// au milieu des champs échappés.
 				let columns = parseCSVLine(trimmedLine)
-				guard columns.count >= 5 else {
+				guard columns.count >= 4 else {
 					print("⚠️ Ligne invalide (colonnes insuffisantes): \(line)")
 					continue
 				}
@@ -166,15 +164,11 @@ struct CSVService {
 				// Parse Commentaire (les virgules sont préservées grâce aux guillemets RFC 4180)
 				let comment = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
 
-				// Parse Statut
-				let statutString = columns[4].trimmingCharacters(in: .whitespacesAndNewlines)
-				let isPotentielle = (statutString == "Potentielle")
-
-				// Parse Catégorie (colonne 6 si présente, sinon .other)
+				// Parse Catégorie (colonne 5 si présente, sinon .other)
 				var category: TransactionCategory = .other
 				var importedCategoryName: String? = nil
-				if columns.count >= 6 {
-					let categoryLabel = columns[5].trimmingCharacters(in: .whitespacesAndNewlines)
+				if columns.count >= 5 {
+					let categoryLabel = columns[4].trimmingCharacters(in: .whitespacesAndNewlines)
 					if let matched = TransactionCategory.allCases.first(where: { $0.label == categoryLabel }) {
 						category = matched
 					} else if !categoryLabel.isEmpty {
@@ -186,8 +180,8 @@ struct CSVService {
 				let transaction = Transaction(
 					amount: amount,
 					comment: comment,
-					potentiel: isPotentielle,
-					date: isPotentielle ? nil : (date ?? Date()),
+					potentiel: false,
+					date: date ?? Date(),
 					category: category,
 					importedCategoryName: importedCategoryName
 				)

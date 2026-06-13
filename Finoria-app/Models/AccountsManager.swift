@@ -345,16 +345,18 @@ class AccountsManager {
 	// rapide en valeurs simples permet de générer le CSV hors du main actor
 	// (Task.detached dans HomeTabView) sans bloquer l'UI.
 	func csvExportSnapshot() -> (rows: [CSVService.ExportRow], accountName: String)? {
-		guard let account = selectedAccount, !account.transactions.isEmpty else { return nil }
-		let rows = account.transactions.map { transaction in
-			CSVService.ExportRow(
-				date: transaction.date,
-				amount: transaction.amount,
-				comment: transaction.comment,
-				potentiel: transaction.potentiel,
-				categoryLabel: transaction.displayCategoryLabel
-			)
-		}
+		guard let account = selectedAccount else { return nil }
+		let rows = account.transactions
+			.filter { !$0.potentiel && $0.sourceRecurringTransaction == nil }
+			.map { transaction in
+				CSVService.ExportRow(
+					date: transaction.date,
+					amount: transaction.amount,
+					comment: transaction.comment,
+					categoryLabel: transaction.displayCategoryLabel
+				)
+			}
+		guard !rows.isEmpty else { return nil }
 		return (rows, account.name)
 	}
 	
