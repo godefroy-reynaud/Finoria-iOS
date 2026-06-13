@@ -37,7 +37,20 @@ struct ContentView: View {
 	}
 	
 	var body: some View {
-		TabView(selection: $tabSelection) {
+		TabView(selection: Binding(
+			get: { tabSelection },
+			set: { newValue in
+				if newValue == .add {
+					if accountsManager.selectedAccount != nil {
+						addTransactionAsPotential = tabSelection == .futur
+						showingAddTransactionSheet = true
+					}
+					// tabSelection ne passe jamais à .add : évite l'état "search" du TabView
+				} else {
+					tabSelection = newValue
+				}
+			}
+		)) {
 			// Onglet Home
 			Tab(value: TabItem.home) {
 				HomeTabView()
@@ -71,20 +84,6 @@ struct ContentView: View {
 				Color.clear
 			} label: {
 				Label("", systemImage: "plus.circle.fill")
-			}
-		}
-		.onChange(of: tabSelection) { oldValue, newValue in
-			// Détection du tap sur l'onglet "Ajouter"
-			if newValue == .add {
-				// Ouvrir la feuille d'ajout de transaction si un compte est sélectionné
-				if accountsManager.selectedAccount != nil {
-					addTransactionAsPotential = oldValue == .futur
-					showingAddTransactionSheet = true
-				}
-				// Revenir immédiatement à l'onglet précédent
-				DispatchQueue.main.async {
-					tabSelection = oldValue
-				}
 			}
 		}
 		.sheet(isPresented: $showingAddTransactionSheet) {
