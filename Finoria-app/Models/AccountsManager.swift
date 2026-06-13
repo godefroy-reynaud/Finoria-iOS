@@ -363,12 +363,28 @@ class AccountsManager {
 	func importCSV(from url: URL) -> Int {
 		guard let account = selectedAccount else { return 0 }
 		let imported = CSVService.importCSV(from: url)
+
+		// Index des catégories personnalisées du compte par nom normalisé.
+		// Permet de retrouver une catégorie existante — ou créée pendant cet
+		// import — sans jamais produire de doublon quand plusieurs lignes
+		// partagent le même libellé de catégorie.
+		var customCategoriesByName: [String: CustomTransactionCategory] = [:]
+		for category in account.customTransactionCategories {
+			customCategoriesByName[Self.normalizeCategoryName(category.name)] = category
+		}
+
 		for tx in imported {
+			// WHY: une catégorie présente dans le CSV mais absente du compte est
+			// désormais créée automatiquement (symbole et couleur par défaut,
+			// personnalisables ensuite) afin que les transactions importées
+			// partagent bien la même catégorie sans aucune action manuelle.
 			if let importedName = tx.importedCategoryName,
-				let matchedCustom = account.customTransactionCategories.first(where: {
-					Self.normalizeCategoryName($0.name) == Self.normalizeCategoryName(importedName)
-				}) {
-				tx.customCategory = matchedCustom
+				let customCategory = resolveCustomCategory(
+					named: importedName,
+					in: account,
+					cache: &customCategoriesByName
+				) {
+				tx.customCategory = customCategory
 				tx.category = .other
 				tx.importedCategoryName = nil
 			}
@@ -377,6 +393,27 @@ class AccountsManager {
 		}
 		if !imported.isEmpty { persist() }
 		return imported.count
+	}
+
+	/// Retourne la catégorie personnalisée nommée `name` pour le compte, en la
+	/// créant avec le symbole et la couleur par défaut si elle n'existe pas encore.
+	/// Le cache évite les doublons et les recherches répétées sur un même import.
+	private func resolveCustomCategory(
+		named name: String,
+		in account: Account,
+		cache: inout [String: CustomTransactionCategory]
+	) -> CustomTransactionCategory? {
+		let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+		let key = Self.normalizeCategoryName(trimmedName)
+		guard !key.isEmpty else { return nil }
+
+		if let existing = cache[key] { return existing }
+
+		let created = CustomTransactionCategory(name: trimmedName)
+		created.account = account
+		modelContext.insert(created)
+		cache[key] = created
+		return created
 	}
 	
 	// MARK: - Récurrences (délégué à RecurrenceEngine)

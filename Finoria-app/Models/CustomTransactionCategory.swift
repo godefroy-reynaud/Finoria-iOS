@@ -27,8 +27,8 @@ final class CustomTransactionCategory {
 	init(
 		id: UUID = UUID(),
 		name: String,
-		symbol: String,
-		colorHex: String
+		symbol: String = "tag.fill",
+		colorHex: String = "#8E8E93"
 	) {
 		self.id = id
 		self.name = name
