@@ -31,6 +31,11 @@ struct AccountPickerView: View {
 							solde: accountsManager.totalNonPotential(for: account),
 							futur: accountsManager.totalNonPotential(for: account) + accountsManager.totalPotential(for: account)
 						)
+						.overlay(
+							RoundedRectangle(cornerRadius: 20)
+								.stroke(Color.blue, lineWidth: 2)
+								.opacity(account.id == accountsManager.selectedAccountId ? 1 : 0)
+						)
 						.listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 						.listRowBackground(Color.clear)
 						.listRowSeparator(.hidden)
