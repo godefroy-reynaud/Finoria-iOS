@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Protocole unifiant les enums qui ont une représentation visuelle (icône, couleur, label)
 /// Utilisé par AccountStyle et TransactionCategory pour factoriser le code
@@ -141,6 +142,10 @@ struct TransactionCategoryPicker: View {
 	@State private var sheetContext: CategorySheetContext?
 	@State private var categoryPendingDeletion: CustomTransactionCategory?
 	@State private var showingDeleteCategoryAlert = false
+	// Catégorie personnalisée visée par un appui long (pilote la feuille d'actions).
+	@State private var pressedCustomCategory: CustomTransactionCategory?
+	@State private var showingCustomActions = false
+	@State private var showingBuiltInInfoAlert = false
 
 	init(
 		selectedStyle: Binding<TransactionCategory>,
@@ -185,11 +190,10 @@ struct TransactionCategoryPicker: View {
 
 	var body: some View {
 		VStack(spacing: 4) {
-			// WHY: ScrollView horizontal paginé plutôt qu'un TabView `.page` —
-			// un `contextMenu` (appui long) ne se déclenche pas dans un TabView
-			// paginé (l'UIPageViewController sous-jacent capte le geste). API de
-			// pagination native iOS 17+ : même défilement physique avec accrochage
-			// et effet ressort, mais qui laisse passer le geste d'appui long.
+			// WHY: ScrollView horizontal paginé (API native iOS 17+) plutôt qu'un
+			// TabView `.page` — même défilement physique avec accrochage et effet
+			// ressort, mais qui laisse passer le `LongPressGesture` des tuiles
+			// (le TabView paginé, basé sur UIPageViewController, capte ce geste).
 			ScrollView(.horizontal, showsIndicators: false) {
 				LazyHStack(spacing: 0) {
 					ForEach(0..<totalPages, id: \.self) { page in
@@ -222,6 +226,28 @@ struct TransactionCategoryPicker: View {
 			}
 		} message: {
 			Text("Suppression définitive.")
+		}
+		// Feuille d'actions native déclenchée par l'appui long. Le titre reprend
+		// le nom de la catégorie pressée : aucune ambiguïté sur la tuile visée.
+		.confirmationDialog(
+			pressedCustomCategory?.name ?? "Catégorie",
+			isPresented: $showingCustomActions,
+			titleVisibility: .visible,
+			presenting: pressedCustomCategory
+		) { category in
+			Button("Modifier") {
+				sheetContext = CategorySheetContext(category: category)
+			}
+			Button("Supprimer", role: .destructive) {
+				categoryPendingDeletion = category
+				showingDeleteCategoryAlert = true
+			}
+			Button("Annuler", role: .cancel) {}
+		}
+		.alert("Catégorie d'origine", isPresented: $showingBuiltInInfoAlert) {
+			Button("OK", role: .cancel) {}
+		} message: {
+			Text("Cette catégorie ne peut pas être modifiée.")
 		}
 		.sheet(item: $sheetContext) { context in
 			AddCustomTransactionCategorySheet(
@@ -264,62 +290,39 @@ struct TransactionCategoryPicker: View {
 		.padding(.horizontal, 4)
 	}
 
-	/// Une tuile de catégorie. L'appui long ouvre un `contextMenu` natif
-	/// ancré automatiquement au-dessus de la tuile pressée : Modifier/Supprimer
-	/// pour les catégories personnalisées, ou une note « non modifiable »
-	/// pour les catégories d'origine.
+	/// Une tuile de catégorie : un appui sélectionne, un appui long ouvre la
+	/// feuille d'actions (catégorie personnalisée) ou la note « non modifiable »
+	/// (catégorie d'origine). Le `LongPressGesture` est `simultaneous` pour
+	/// cohabiter avec le défilement du `ScrollView`.
 	@ViewBuilder
 	private func categoryTile(_ item: CategoryPickerItem) -> some View {
-		let tile = TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
+		TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
 			.contentShape(Rectangle())
 			.onTapGesture {
 				handleTap(item)
 			}
-
-		switch item.kind {
-		case let .custom(id, _, _, _):
-			if let customCategory = customCategoryById[id] {
-				tile.contextMenu {
-					Button {
-						sheetContext = CategorySheetContext(category: customCategory)
-					} label: {
-						Label("Modifier", systemImage: "pencil")
+			.simultaneousGesture(
+				LongPressGesture(minimumDuration: 0.45)
+					.onEnded { _ in
+						handleLongPress(item)
 					}
-					Button(role: .destructive) {
-						categoryPendingDeletion = customCategory
-						showingDeleteCategoryAlert = true
-					} label: {
-						Label("Supprimer", systemImage: "trash")
-					}
-				} preview: {
-					tilePreview(item)
-				}
-			} else {
-				tile
-			}
-		case .builtIn:
-			tile.contextMenu {
-				// Bouton désactivé servant de note : indique que les catégories
-				// d'origine ne peuvent pas être modifiées.
-				Button { } label: {
-					Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
-				}
-				.disabled(true)
-			} preview: {
-				tilePreview(item)
-			}
-		case .addButton:
-			tile
-		}
+			)
 	}
 
-	/// Aperçu « soulevé » du `contextMenu`, limité à une seule tuile. Sans cet
-	/// aperçu explicite, SwiftUI soulève toute la zone de la tuile (qui remplit
-	/// sa colonne), ce qui donne l'impression que l'appui long vise la page entière.
-	@ViewBuilder
-	private func tilePreview(_ item: CategoryPickerItem) -> some View {
-		TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
-			.padding(12)
+	private func handleLongPress(_ item: CategoryPickerItem) {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+		switch item.kind {
+		case .builtIn:
+			showingBuiltInInfoAlert = true
+		case let .custom(id, _, _, _):
+			if let customCategory = customCategoryById[id] {
+				pressedCustomCategory = customCategory
+				showingCustomActions = true
+			}
+		case .addButton:
+			break
+		}
 	}
 
 	private func handleTap(_ item: CategoryPickerItem) {
