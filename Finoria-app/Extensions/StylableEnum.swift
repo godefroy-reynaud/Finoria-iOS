@@ -173,34 +173,20 @@ struct TransactionCategoryPicker: View {
 		max(1, (allItems.count + itemsPerPage - 1) / itemsPerPage)
 	}
 
-	/// Relie la position de scroll (optionnelle, type natif `scrollPosition`)
-	/// à `currentPage`. Permet aussi bien le suivi du défilement utilisateur que
-	/// le défilement programmatique (indicateur de page, synchronisation).
-	private var scrollPositionBinding: Binding<Int?> {
-		Binding(
-			get: { currentPage },
-			set: { if let newValue = $0 { currentPage = newValue } }
-		)
-	}
-
 	var body: some View {
 		VStack(spacing: 4) {
-			// WHY: ScrollView horizontal paginé (API native iOS 17+) plutôt qu'un
-			// TabView `.page` — même défilement physique avec accrochage et effet
-			// ressort, mais qui laisse passer l'appui long du `contextMenu` des
-			// tuiles (le TabView paginé, basé sur UIPageViewController, le capte).
-			ScrollView(.horizontal, showsIndicators: false) {
-				LazyHStack(spacing: 0) {
-					ForEach(0..<totalPages, id: \.self) { page in
-						pageView(items: itemsForPage(page))
-							.containerRelativeFrame(.horizontal)
-							.id(page)
-					}
+			// WHY: TabView `.page` (un seul conteneur de pagination natif) plutôt
+			// qu'un ScrollView horizontal imbriquant LazyHStack + LazyVGrid — cet
+			// empilement de conteneurs « lazy » empêche le `contextMenu` des tuiles
+			// de se déclencher (bug SwiftUI connu). Ici chaque page n'a qu'une seule
+			// LazyVGrid, exactement comme ShortcutsGridView où le menu fonctionne.
+			TabView(selection: $currentPage) {
+				ForEach(0..<totalPages, id: \.self) { page in
+					pageView(items: itemsForPage(page))
+						.tag(page)
 				}
-				.scrollTargetLayout()
 			}
-			.scrollTargetBehavior(.paging)
-			.scrollPosition(id: scrollPositionBinding)
+			.tabViewStyle(.page(indexDisplayMode: .never))
 			.frame(height: baseGridHeight)
 
 			if totalPages > 1 {
