@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 /// Protocole unifiant les enums qui ont une représentation visuelle (icône, couleur, label)
 /// Utilisé par AccountStyle et TransactionCategory pour factoriser le code
@@ -142,10 +141,6 @@ struct TransactionCategoryPicker: View {
 	@State private var sheetContext: CategorySheetContext?
 	@State private var categoryPendingDeletion: CustomTransactionCategory?
 	@State private var showingDeleteCategoryAlert = false
-	// Catégorie personnalisée visée par un appui long (pilote la feuille d'actions).
-	@State private var pressedCustomCategory: CustomTransactionCategory?
-	@State private var showingCustomActions = false
-	@State private var showingBuiltInInfoAlert = false
 
 	init(
 		selectedStyle: Binding<TransactionCategory>,
@@ -192,8 +187,8 @@ struct TransactionCategoryPicker: View {
 		VStack(spacing: 4) {
 			// WHY: ScrollView horizontal paginé (API native iOS 17+) plutôt qu'un
 			// TabView `.page` — même défilement physique avec accrochage et effet
-			// ressort, mais qui laisse passer le `LongPressGesture` des tuiles
-			// (le TabView paginé, basé sur UIPageViewController, capte ce geste).
+			// ressort, mais qui laisse passer l'appui long du `contextMenu` des
+			// tuiles (le TabView paginé, basé sur UIPageViewController, le capte).
 			ScrollView(.horizontal, showsIndicators: false) {
 				LazyHStack(spacing: 0) {
 					ForEach(0..<totalPages, id: \.self) { page in
@@ -227,28 +222,6 @@ struct TransactionCategoryPicker: View {
 		} message: {
 			Text("Suppression définitive.")
 		}
-		// Feuille d'actions native déclenchée par l'appui long. Le titre reprend
-		// le nom de la catégorie pressée : aucune ambiguïté sur la tuile visée.
-		.confirmationDialog(
-			pressedCustomCategory?.name ?? "Catégorie",
-			isPresented: $showingCustomActions,
-			titleVisibility: .visible,
-			presenting: pressedCustomCategory
-		) { category in
-			Button("Modifier") {
-				sheetContext = CategorySheetContext(category: category)
-			}
-			Button("Supprimer", role: .destructive) {
-				categoryPendingDeletion = category
-				showingDeleteCategoryAlert = true
-			}
-			Button("Annuler", role: .cancel) {}
-		}
-		.alert("Catégorie d'origine", isPresented: $showingBuiltInInfoAlert) {
-			Button("OK", role: .cancel) {}
-		} message: {
-			Text("Cette catégorie ne peut pas être modifiée.")
-		}
 		.sheet(item: $sheetContext) { context in
 			AddCustomTransactionCategorySheet(
 				title: context.category == nil ? "Nouvelle catégorie" : "Modifier la catégorie",
@@ -277,51 +250,60 @@ struct TransactionCategoryPicker: View {
 
 	@ViewBuilder
 	private func pageView(items: [CategoryPickerItem]) -> some View {
+		// ForEach sur l'identité stable des items (et non sur l'index) : c'est
+		// la condition pour qu'un `contextMenu` se déclenche correctement sur
+		// chaque tuile dans une LazyVGrid — même pattern que ShortcutsGridView.
 		LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: columns), spacing: 16) {
-			ForEach(0..<itemsPerPage, id: \.self) { index in
-				if index < items.count {
-					categoryTile(items[index])
-				} else {
-					Color.clear
-						.frame(width: 52, height: 70)
-				}
+			ForEach(items) { item in
+				categoryTile(item)
 			}
 		}
 		.padding(.horizontal, 4)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 	}
 
-	/// Une tuile de catégorie : un appui sélectionne, un appui long ouvre la
-	/// feuille d'actions (catégorie personnalisée) ou la note « non modifiable »
-	/// (catégorie d'origine). Le `LongPressGesture` est `simultaneous` pour
-	/// cohabiter avec le défilement du `ScrollView`.
+	/// Une tuile de catégorie. Calquée sur `ShortcutCard` : un `Button` (appui =
+	/// sélection) + un `contextMenu` natif (appui long) qui s'ancre sur la tuile
+	/// pressée. Menu Modifier/Supprimer pour les catégories personnalisées,
+	/// note « non modifiable » pour les catégories d'origine.
 	@ViewBuilder
 	private func categoryTile(_ item: CategoryPickerItem) -> some View {
-		TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
-			.contentShape(Rectangle())
-			.onTapGesture {
-				handleTap(item)
-			}
-			.simultaneousGesture(
-				LongPressGesture(minimumDuration: 0.45)
-					.onEnded { _ in
-						handleLongPress(item)
-					}
-			)
-	}
-
-	private func handleLongPress(_ item: CategoryPickerItem) {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		let tile = Button {
+			handleTap(item)
+		} label: {
+			TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
+		}
+		.buttonStyle(.plain)
 
 		switch item.kind {
-		case .builtIn:
-			showingBuiltInInfoAlert = true
 		case let .custom(id, _, _, _):
 			if let customCategory = customCategoryById[id] {
-				pressedCustomCategory = customCategory
-				showingCustomActions = true
+				tile.contextMenu {
+					Button {
+						sheetContext = CategorySheetContext(category: customCategory)
+					} label: {
+						Label("Modifier", systemImage: "pencil")
+					}
+					Button(role: .destructive) {
+						categoryPendingDeletion = customCategory
+						showingDeleteCategoryAlert = true
+					} label: {
+						Label("Supprimer", systemImage: "trash")
+					}
+				}
+			} else {
+				tile
+			}
+		case .builtIn:
+			tile.contextMenu {
+				// Bouton désactivé servant de note : catégorie non modifiable.
+				Button { } label: {
+					Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
+				}
+				.disabled(true)
 			}
 		case .addButton:
-			break
+			tile
 		}
 	}
 
