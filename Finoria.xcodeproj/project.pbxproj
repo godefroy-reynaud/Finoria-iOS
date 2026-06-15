@@ -62,6 +62,8 @@
 		F88E8D062FE09C6B00AAFD90 /* AccountCategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */; };
 		F88E8D072FE09C6B00AAFD90 /* StyleIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */; };
 		F88E8D082FE09C6B00AAFD90 /* TransactionCategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */; };
+		F88E8D0A2FE0A03D00AAFD90 /* TransactionGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */; };
+		F88E8D0C2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */; };
 		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8ACBAA12F5A1C560074CE1B /* SwiftDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */; };
@@ -157,6 +159,8 @@
 		F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AccountCategoryPicker.swift; sourceTree = "<group>"; };
 		F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StyleIconView.swift; sourceTree = "<group>"; };
 		F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionCategoryPicker.swift; sourceTree = "<group>"; };
+		F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionGrouping.swift; sourceTree = "<group>"; };
+		F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DayGroupedTransactionSections.swift; sourceTree = "<group>"; };
 		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftDataService.swift; sourceTree = "<group>"; };
@@ -328,6 +332,7 @@
 		F8388E882F3563CB0081F2F9 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */,
 				F88E8D012FE09C4200AAFD90 /* AmountFormatting.swift */,
 				F8ACBAAD2F68B33E0074CE1B /* ColorHex.swift */,
 				F8388EAB2F3E3FC00081F2F9 /* ViewModifiers.swift */,
@@ -340,6 +345,7 @@
 		F8388E8D2F3563DD0081F2F9 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */,
 				F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */,
 				F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */,
 				F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */,
@@ -588,6 +594,7 @@
 				F8388E9D2F3BC5F90081F2F9 /* AddRecurringTransactionView.swift in Sources */,
 				F800A3EE2E4E01F700918507 /* NoAccountView.swift in Sources */,
 				F8388E8C2F3563CC0081F2F9 /* StylableEnum.swift in Sources */,
+				F88E8D0C2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift in Sources */,
 				F8388E9C2F3BC5F90081F2F9 /* RecurringTransactionsGridView.swift in Sources */,
 				F8B818F92F06A7A7002D02F2 /* DocumentPicker.swift in Sources */,
 				F8388EAF2F3E3FDE0081F2F9 /* RecurrenceEngine.swift in Sources */,
@@ -611,6 +618,7 @@
 				F8ACBAAC2F5EF2970074CE1B /* WelcomeView.swift in Sources */,
 				F88E8CFE2FE0955700AAFD90 /* AccountsManager+Recurring.swift in Sources */,
 				F8388E8B2F3563CC0081F2F9 /* DateFormatting.swift in Sources */,
+				F88E8D0A2FE0A03D00AAFD90 /* TransactionGrouping.swift in Sources */,
 				F8B818FF2F06D14E002D02F2 /* CalendrierMainView.swift in Sources */,
 				F810E2F12E428FFB00C2DFA9 /* AccountCardView.swift in Sources */,
 				F8388E752F349A540081F2F9 /* AddAccountSheet.swift in Sources */,
