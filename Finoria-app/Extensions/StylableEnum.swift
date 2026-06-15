@@ -291,6 +291,8 @@ struct TransactionCategoryPicker: View {
 					} label: {
 						Label("Supprimer", systemImage: "trash")
 					}
+				} preview: {
+					tilePreview(item)
 				}
 			} else {
 				tile
@@ -303,10 +305,21 @@ struct TransactionCategoryPicker: View {
 					Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
 				}
 				.disabled(true)
+			} preview: {
+				tilePreview(item)
 			}
 		case .addButton:
 			tile
 		}
+	}
+
+	/// Aperçu « soulevé » du `contextMenu`, limité à une seule tuile. Sans cet
+	/// aperçu explicite, SwiftUI soulève toute la zone de la tuile (qui remplit
+	/// sa colonne), ce qui donne l'impression que l'appui long vise la page entière.
+	@ViewBuilder
+	private func tilePreview(_ item: CategoryPickerItem) -> some View {
+		TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
+			.padding(12)
 	}
 
 	private func handleTap(_ item: CategoryPickerItem) {
