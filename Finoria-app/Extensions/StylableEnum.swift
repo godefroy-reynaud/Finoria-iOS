@@ -245,7 +245,9 @@ struct TransactionCategoryPicker: View {
 			}
 		}
 		.padding(.horizontal, 4)
-		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+		// Centré verticalement (et non collé en haut) pour que l'anneau de
+		// sélection de la première ligne ne soit pas rogné par le bord de la page.
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 	}
 
 	/// Une tuile de catégorie : un appui sélectionne, un appui long ouvre un
@@ -295,8 +297,8 @@ struct TransactionCategoryPicker: View {
 			switch item.kind {
 			case let .custom(id, _, _, _):
 				if let category = customCategoryById[id] {
-					VStack(spacing: 0) {
-						menuActionButton(title: "Modifier", systemImage: "pencil") {
+					VStack(alignment: .leading, spacing: 18) {
+						Button {
 							// On ferme le popover PUIS on présente la sheet au tick
 							// suivant : éviter deux présentations simultanées (sinon
 							// la sheet ne s'affiche pas).
@@ -304,20 +306,24 @@ struct TransactionCategoryPicker: View {
 							DispatchQueue.main.async {
 								sheetContext = CategorySheetContext(category: category)
 							}
+						} label: {
+							Label("Modifier", systemImage: "pencil")
 						}
-						Divider()
-						menuActionButton(title: "Supprimer", systemImage: "trash", isDestructive: true) {
+						Button(role: .destructive) {
 							menuItemId = nil
 							DispatchQueue.main.async {
 								categoryPendingDeletion = category
 								showingDeleteCategoryAlert = true
 							}
+						} label: {
+							Label("Supprimer", systemImage: "trash")
 						}
 					}
-					.frame(width: 220)
+					.padding(.horizontal, 20)
+					.padding(.vertical, 16)
 				}
 			case .builtIn:
-				Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
+				Label("Non modifiable", systemImage: "lock.fill")
 					.font(.subheadline)
 					.foregroundStyle(.secondary)
 					.padding()
@@ -327,27 +333,6 @@ struct TransactionCategoryPicker: View {
 			}
 		}
 		.presentationCompactAdaptation(.popover)
-	}
-
-	private func menuActionButton(
-		title: String,
-		systemImage: String,
-		isDestructive: Bool = false,
-		action: @escaping () -> Void
-	) -> some View {
-		Button(action: action) {
-			HStack {
-				Text(title)
-				Spacer()
-				Image(systemName: systemImage)
-			}
-			.font(.body)
-			.foregroundStyle(isDestructive ? Color.red : Color.primary)
-			.padding(.horizontal, 16)
-			.padding(.vertical, 12)
-			.contentShape(Rectangle())
-		}
-		.buttonStyle(.plain)
 	}
 
 	private func handleLongPress(_ item: CategoryPickerItem) {
