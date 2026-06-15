@@ -44,18 +44,7 @@ struct CategoryTransactionsView: View {
 			.filter { belongs($0) }
 			.sorted { ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast) }
 	}
-	
-	/// Regroupe les transactions par jour
-	private var transactionsGroupedByDay: [(date: Date, transactions: [Transaction])] {
-		let calendar = Calendar.current
-		let grouped = Dictionary(grouping: categoryTransactions) { transaction -> Date in
-			guard let date = transaction.date else { return Date.distantPast }
-			return calendar.startOfDay(for: date)
-		}
-		return grouped.sorted { $0.key > $1.key }
-			.map { (date: $0.key, transactions: $0.value) }
-	}
-	
+
 	var body: some View {
 		Group {
 			if categoryTransactions.isEmpty {
@@ -68,30 +57,8 @@ struct CategoryTransactionsView: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity)
 			} else {
 				List {
-					ForEach(transactionsGroupedByDay, id: \.date) { group in
-						Section {
-							ForEach(group.transactions) { transaction in
-								TransactionRow(transaction: transaction)
-									.contentShape(Rectangle())
-									.onTapGesture {
-										transactionToEdit = transaction
-									}
-									.swipeActions(edge: .trailing, allowsFullSwipe: true) {
-										Button(role: .destructive) {
-											withAnimation {
-												accountsManager.deleteTransaction(transaction)
-											}
-										} label: {
-											Label("Supprimer", systemImage: "trash")
-										}
-									}
-							}
-						} header: {
-							Text(group.date.dayHeaderFormatted())
-								.font(.subheadline)
-								.fontWeight(.semibold)
-								.foregroundStyle(.secondary)
-						}
+					DayGroupedTransactionSections(transactions: categoryTransactions) { transaction in
+						transactionToEdit = transaction
 					}
 				}
 			}

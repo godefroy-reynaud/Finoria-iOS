@@ -1,6 +1,6 @@
 # Finoria — Complete Code Structure Reference
 
-*Last updated: 2026-06-12*
+*Last updated: 2026-06-15*
 
 This file documents **every Swift file** in the project so a developer or AI can understand any class, function, or view without opening the source. Companion overview: [README.md](README.md).
 
@@ -236,11 +236,25 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 **Notes:** `guessFrom` is a long if-chain (~120 lines) — flagged in the audit as a candidate for a keyword-table refactor.
 
 ---
-**`Finoria-app/Models/AccountsManager.swift`**
+**`Finoria-app/Models/AccountsManager.swift`** (+ 7 per-domain extension files)
 
 **Purpose:** Central `@Observable` data manager — the **single write path** to SwiftData and the read funnel for selected-account data.
 
 **Type:** `@MainActor @Observable class AccountsManager`
+
+**Organisation:** the class is split for readability across one core file + 7 same-module extension files (the public API is unchanged — callers don't see the split):
+| File | Holds |
+|------|-------|
+| `AccountsManager.swift` | observed state (`selectedAccountId`, `dataVersion`, `selectedAccount`…), `init`, `preview`, lifecycle (`refreshFromStore`, `saveData`), shared helpers `persist()` / `firstAccount()` / `normalizeCategoryName` |
+| `AccountsManager+Accounts.swift` | `addAccount` / `deleteAccount` / `updateAccount` / `resetAccount` |
+| `AccountsManager+Transactions.swift` | `addTransaction` / `deleteTransaction` / `validateTransaction` / `updateTransaction` / `transactions()` |
+| `AccountsManager+CustomCategories.swift` | custom-category CRUD + private `relinkImportedTransactions` |
+| `AccountsManager+Calculations.swift` | totals, available years, % change, status/period filters (all delegate to `CalculationService`) |
+| `AccountsManager+Shortcuts.swift` | widget-shortcut CRUD |
+| `AccountsManager+CSV.swift` | `csvExportSnapshot` / `importCSV` + private `resolveCustomCategory` |
+| `AccountsManager+Recurring.swift` | recurrence CRUD + `processRecurringTransactions` |
+
+`persist()`, `firstAccount()` and the `logger` are `internal` (not `private`) so the extensions can reach them; `relinkImportedTransactions` and `resolveCustomCategory` stay `private` inside the file that uses them.
 
 **Dependencies:** SwiftData (ModelContext, FetchDescriptor), Observation, os.log, Account, Transaction, WidgetShortcut, RecurringTransaction, CustomTransactionCategory, RecurrenceEngine, CalculationService, CSVService, AppStorageKeys, SwiftDataService (preview).
 
@@ -252,7 +266,6 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | selectedAccountId | UUID? (observed) | Current selection; `didSet` persists to UserDefaults (`AppStorageKeys.lastSelectedAccountId`) |
 | lastPersistenceError | String? (observed) | Last save/fetch error message (not currently surfaced by any view) |
 | dataVersion | private(set) Int (observed) | **Invalidation token** — incremented by `persist()` and `refreshFromStore()`; read by the read helpers so views refresh after every committed mutation (SwiftData inverse-relationship observation alone is unreliable) |
-| isExportingCSV | private(set) Bool (observed) | Drives the CSV ProgressView in HomeTabView's toolbar |
 | selectedAccount | Account? (computed) | Reads `dataVersion` + `selectedAccountId`, then `fetchLimit = 1` fetch by id. Funnel for all selected-account reads |
 | preview | static AccountsManager | In-memory container instance for SwiftUI previews |
 
@@ -274,9 +287,8 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | availableYears / totalForYear / totalForMonth / monthlyChangePercentage | (year/month) | [Int]/Double/Double/Double? | Delegations over `transactions()` |
 | potentialTransactions / validatedTransactions | (year?, month?) | [Transaction] | Filter delegations |
 | getWidgetShortcuts / addWidgetShortcut / deleteWidgetShortcut / updateWidgetShortcut | shortcut (+fields) | — | Shortcut CRUD on selected account |
-| beginCSVExport | — | (rows: [CSVService.ExportRow], accountName: String)? | Sendable snapshot of the selected account's transactions; sets `isExportingCSV = true`; nil if no account/empty |
-| endCSVExport | — | — | Clears `isExportingCSV` |
-| importCSV | from URL | Int | Parses via CSVService, re-links known custom-category labels, inserts into selected account, persists; returns count |
+| csvExportSnapshot | — | (rows: [CSVService.ExportRow], accountName: String)? | Sendable snapshot of the selected account's validated, non-recurrence-generated transactions for off-main CSV generation; nil if no account/empty |
+| importCSV | from URL | Int | Parses via CSVService, re-links known custom-category labels (creating the category if absent), inserts into selected account, persists; returns count |
 | getRecurringTransactions / addRecurringTransaction / deleteRecurringTransaction / updateRecurringTransaction / pauseRecurringTransaction / resumeRecurringTransaction | recurring (+fields) | — | Recurrence CRUD. Delete/update/pause first strip pending potential occurrences (engine); update resets the watermark; resume sets watermark to yesterday and reprocesses |
 | processRecurringTransactions | — | — | Fetches all accounts, runs `RecurrenceEngine.processAll`; persists if anything changed |
 | saveData | — | — | Public persist passthrough — **dead code, never called** |
@@ -284,7 +296,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | relinkImportedTransactions (private) | in account, to customCategory | — | Attaches transactions whose `importedCategoryName` matches the category name (normalized) |
 | normalizeCategoryName | static, value: String | String | Canonical trim + case/diacritic-insensitive folding — also used by TransactionCategoryPicker |
 
-**Notes:** Largest non-view file (~510 lines) but single-purpose. If you add a read helper that does **not** go through `selectedAccount`, read `dataVersion` inside it or its views won't refresh.
+**Notes:** Split across one core file + 7 per-domain extensions (see the Organisation table above) — the core file is now ~200 lines. If you add a read helper that does **not** go through `selectedAccount`, read `dataVersion` inside it or its views won't refresh.
 
 ---
 **`Finoria-app/Models/AppStorageKeys.swift`**
@@ -423,24 +435,42 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 ---
 **`Finoria-app/Extensions/StylableEnum.swift`**
 
-**Purpose:** Shared "stylable enum" protocol plus the two category-picker views and the compact amount formatter. ⚠ Mixed responsibilities — audit recommends splitting (picker views → Views/Components, formatter → its own extension).
+**Purpose:** The shared "stylable enum" protocol (icon / color / label) factoring out the visual representation common to `AccountStyle` and `TransactionCategory`. *(The picker views, `StyleIconView` and `compactAmount` that used to live here have been extracted — see `Views/Components/` and the two new entries below.)*
 
-**Type:** `protocol StylableEnum` + `struct AccountCategoryPicker<Style: StylableEnum>: View` + `struct TransactionCategoryPicker: View` + private helpers (`CategorySheetContext`, `CategoryPickerItem`, `TransactionCategoryTileView`, `PageControlIndicator`) + `struct StyleIconView<Style>: View` + global `func compactAmount(_:) -> String`.
+**Type:** `protocol StylableEnum: RawRepresentable, CaseIterable, Identifiable, Codable where RawValue == String` + default `extension { var id }`.
 
-**Dependencies:** SwiftUI, UIKit (haptics), AccountsManager (env + normalizeCategoryName), TransactionCategory, CustomTransactionCategory, AddCustomTransactionCategorySheet.
+**Dependencies:** SwiftUI (Color).
 
 **Key members:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| StylableEnum | — | protocol | `RawRepresentable (String) & CaseIterable & Identifiable & Codable` requiring `icon`, `color`, `label`; default `id = rawValue`. Adopted by AccountStyle and TransactionCategory |
-| AccountCategoryPicker | selectedStyle: Binding, columns = 4, collapsedRows?, onManualSelection? | View | Generic grid picker; collapsed mode shows N rows with "Voir tout" expander and always keeps the selection visible |
-| TransactionCategoryPicker | selectedStyle: Binding\<TransactionCategory\>, selectedCustomCategoryId: Binding\<UUID?\>, onManualSelection? | View | Paginated grid (5×2 per page, swipeable TabView + page dots): built-ins + custom categories + "add" tile. Tap selects (custom → `.other` + id); long-press: info alert (built-in) or edit/delete dialog (custom); add/edit opens AddCustomTransactionCategorySheet with name validation (non-empty, unique vs built-ins and customs, normalized via `AccountsManager.normalizeCategoryName`); auto-scrolls to the selected item's page |
-| StyleIconView | style, size = 40 | View | Colored circle + SF Symbol for any StylableEnum |
-| compactAmount | value: Double | String | Locale-aware compaction: 2 850 → "2850", 2 850 000 → "2,85M"; suffixes k/M/G; trims trailing zeros. Creates a NumberFormatter per call (left as-is: per-call mutation is value-dependent) |
+| StylableEnum | — | protocol | Requires `icon: String`, `color: Color`, `label: String`; default `id = rawValue`. Adopted by AccountStyle and TransactionCategory |
 
-**SwiftUI body:** see per-view descriptions above.
+---
+**`Finoria-app/Extensions/AmountFormatting.swift`**
 
-**Notes:** Reads `AccountsManager` from the environment — only usable inside the injected hierarchy.
+**Purpose:** Compact, locale-aware amount formatter (extracted from StylableEnum.swift).
+
+**Type:** global `func compactAmount(_:) -> String`.
+
+**Dependencies:** Foundation.
+
+| Name | Parameters | Returns | Description |
+|------|-----------|---------|-------------|
+| compactAmount | value: Double | String | Locale-aware compaction: 2 850 → "2850", 2 850 000 → "2,85M"; suffixes k/M/G; trims trailing zeros. Creates a NumberFormatter per call (per-call mutation is value-dependent) |
+
+---
+**`Finoria-app/Extensions/TransactionGrouping.swift`**
+
+**Purpose:** Day-grouping helper for transaction lists — the single source of the logic formerly duplicated in AllTransactionsView and CategoryTransactionsView.
+
+**Type:** `extension Array where Element == Transaction`.
+
+**Dependencies:** Foundation; Transaction.
+
+| Name | Parameters | Returns | Description |
+|------|-----------|---------|-------------|
+| groupedByDay | — | [(date: Date, transactions: [Transaction])] | Groups by `startOfDay`, days sorted descending; dateless transactions fall under `Date.distantPast`. Preserves intra-day order from the source array (callers pass a date-sorted array) |
 
 ---
 **`Finoria-app/Extensions/ViewModifiers.swift`**
@@ -661,6 +691,64 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 **SwiftUI body:** `TextField` with `.number.precision(.fractionLength(0...2))` format, decimal-pad keyboard, trailing gray "€" overlay.
 
 ---
+**`Finoria-app/Views/Components/AccountCategoryPicker.swift`**
+
+**Purpose:** Generic grid style picker for any `StylableEnum` (extracted from StylableEnum.swift).
+
+**Type:** `struct AccountCategoryPicker<Style: StylableEnum>: View`
+
+**Dependencies:** SwiftUI, StylableEnum.
+
+| Name | Parameters | Returns | Description |
+|------|-----------|---------|-------------|
+| AccountCategoryPicker | selectedStyle: Binding, columns = 4, collapsedRows?, onManualSelection? | View | Grid of style tiles; collapsed mode shows N rows with a "Voir tout"/"Voir moins" expander and always keeps the selection visible |
+
+---
+**`Finoria-app/Views/Components/TransactionCategoryPicker.swift`**
+
+**Purpose:** Paginated transaction-category picker with custom categories and an add tile (extracted from StylableEnum.swift, with its private sub-views).
+
+**Type:** `struct TransactionCategoryPicker: View` + private `CategorySheetContext`, `CategoryPickerItem`, `TransactionCategoryTileView`, `PageControlIndicator`.
+
+**Dependencies:** SwiftUI, UIKit (haptics), AccountsManager (env + normalizeCategoryName), TransactionCategory, CustomTransactionCategory, AddCustomTransactionCategorySheet.
+
+| Name | Parameters | Returns | Description |
+|------|-----------|---------|-------------|
+| TransactionCategoryPicker | selectedStyle: Binding\<TransactionCategory\>, selectedCustomCategoryId: Binding\<UUID?\>, onManualSelection? | View | Paginated grid (5×2 per page, swipeable TabView + page dots): built-ins + custom categories + "add" tile. Tap selects (custom → `.other` + id); long-press: info popover (built-in) or edit/delete (custom); add/edit opens AddCustomTransactionCategorySheet with name validation (non-empty, unique vs built-ins and customs, normalized via `AccountsManager.normalizeCategoryName`); auto-scrolls to the selected item's page |
+
+**Notes:** Reads `AccountsManager` from the environment — only usable inside the injected hierarchy. Uses `LongPressGesture` + anchored `popover` (not `contextMenu`, which misbehaves inside Form/List).
+
+---
+**`Finoria-app/Views/Components/StyleIconView.swift`**
+
+**Purpose:** Colored circle + SF Symbol for any `StylableEnum` (extracted from StylableEnum.swift).
+
+**Type:** `struct StyleIconView<Style: StylableEnum>: View`
+
+**Dependencies:** SwiftUI, StylableEnum.
+
+| Name | Parameters | Returns | Description |
+|------|-----------|---------|-------------|
+| StyleIconView | style, size = 40 | View | Colored circle + SF Symbol sized to `size` |
+
+---
+**`Finoria-app/Views/Components/DayGroupedTransactionSections.swift`**
+
+**Purpose:** Reusable day-sectioned transaction rows — the shared rendering extracted from AllTransactionsView and CategoryTransactionsView.
+
+**Type:** `struct DayGroupedTransactionSections: View`
+
+**Dependencies:** SwiftUI, AccountsManager (env, delete), Transaction, TransactionRow, `groupedByDay()`, `dayHeaderFormatted()`.
+
+**Properties:**
+| Name | Type | Description |
+|------|------|-------------|
+| transactions | [Transaction] | Already filtered/sorted list to display |
+| onEdit | (Transaction) -> Void | Tap callback (caller presents the edit sheet) |
+
+**SwiftUI body:** `ForEach(transactions.groupedByDay())` → one `Section` per day (`dayHeaderFormatted()` header) of `TransactionRow`s with tap-to-edit and trailing swipe-to-delete (`accountsManager.deleteTransaction`, animated). Produces `Section`s — place it directly inside a `List`.
+
+---
 
 ## Views/Transactions/
 
@@ -820,19 +908,21 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Purpose:** Home tab shell: navigation chrome plus CSV export (share) and import.
 
-**Type:** `enum CSVExportError: Error` + `struct CSVExport: Transferable` + `struct HomeTabView: View`.
+**Type:** `struct HomeTabView: View`.
 
 **Dependencies:** AccountsManager (env), HomeView, NoAccountView, DocumentPicker, CSVService, accountPickerToolbar.
 
 **Key members:**
-| Name | Parameters | Returns | Description |
-|------|-----------|---------|-------------|
-| CSVExport.transferRepresentation | — | FileRepresentation | Lazy export: when the user shares, it (1) awaits `beginCSVExport()` on the main actor for a Sendable row snapshot (+spinner flag), (2) builds and writes the CSV **in the background** (`@Sendable` closure), (3) `defer`-resets the spinner. Throws `CSVExportError.generationFailed` on nil |
-| HomeTabView.importCSV (private) | from URL | — | `accountsManager.importCSV`; success/error alert with imported count |
+| Name | Type / Params | Description |
+|------|---------------|-------------|
+| csvURL | @State URL? | Pre-generated export file; nil when the account has no exportable transaction |
+| csvTaskID | computed String | `selectedAccount.persistentModelID` + `dataVersion` — the `.task(id:)` key; changes on account switch or any mutation |
+| prepareCSV (private) | async | Snapshots via `accountsManager.csvExportSnapshot()` on the main actor, then a `Task.detached` runs `CSVService.generateCSV` off-main and stores the result in `csvURL` (keeps the previous file until the new one is ready) |
+| importCSV (private) | from URL | `accountsManager.importCSV`; success/error alert with imported count |
 
-**SwiftUI body:** `NavigationStack` → `HomeView` (or `NoAccountView`). Leading toolbar: `ShareLink(item: CSVExport…)` whose label swaps to a `ProgressView` while `isExportingCSV`, disabled when there are no transactions or an export is running; plus an import button opening `DocumentPicker`. Hosts import success/error alerts. Trailing account-picker toolbar via modifier.
+**SwiftUI body:** `NavigationStack` → `HomeView` (or `NoAccountView`). Leading toolbar: when `csvURL` is ready, a `ShareLink(item: url)` opens the share sheet **instantly** (file already generated); when nil, a dimmed button raises a "no transaction" alert; plus an import button opening `DocumentPicker`. `.task(id: csvTaskID)` (re)generates the CSV whenever the account or data changes. Hosts import success/error and no-transaction alerts. Trailing account-picker toolbar via modifier.
 
-**Notes:** Generation at share-time (never at render) is what keeps first-launch sharing working; ShareLink gives correct iPad popover anchoring.
+**Notes:** The CSV is generated ahead of time by `.task(id:)` (off the main actor) and cached in `csvURL`, so `ShareLink` opens with no delay; `ShareLink(item:)` gives correct iPad popover anchoring.
 
 ---
 **`Finoria-app/Views/TabView/HomeView.swift`**
@@ -1010,13 +1100,13 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Type:** `struct CategoryTransactionsView: View`
 
-**Dependencies:** AccountsManager (env), TransactionRow, AddTransactionView, StyleIconView, dayHeaderFormatted.
+**Dependencies:** AccountsManager (env), AddTransactionView, CategoryIconView, DayGroupedTransactionSections.
 
-**Properties:** `category`, `month`, `year` (lets); `@State transactionToEdit`; computed `categoryTransactions` (validated, month-filtered, category-filtered, date desc) and `transactionsGroupedByDay`.
+**Properties:** `category`, `customCategoryId` (nil for built-ins), `month`, `year` (lets); `@State transactionToEdit`; computed `customCategory` / `displayLabel` / `displayIcon` / `displayColor` and `categoryTransactions` (validated, month-filtered, category-filtered via `belongs(_:)`, date desc).
 
-**SwiftUI body:** Day-sectioned list of `TransactionRow`s (tap to edit, swipe to delete with animation); icon empty state; navigation title = category label.
+**SwiftUI body:** `DayGroupedTransactionSections(transactions: categoryTransactions)` inside a `List`; `CategoryIconView` empty state; navigation title = category label.
 
-**Notes:** Day-grouping logic duplicated with AllTransactionsView (audit-flagged).
+**Notes:** Day-grouping/rendering now factored into the shared `DayGroupedTransactionSections` component (was duplicated with AllTransactionsView).
 
 ---
 
@@ -1086,11 +1176,11 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Type:** `struct AllTransactionsView: View`
 
-**Dependencies:** AccountsManager (env), TransactionRow, AddTransactionView, AccountPickerView, dayHeaderFormatted, `.if` modifier.
+**Dependencies:** AccountsManager (env), DayGroupedTransactionSections, AddTransactionView, AccountPickerView, `.if` modifier.
 
-**Properties:** `embedded: Bool = false` (hides title/toolbar and scroll background when true); `@State` picker/edit/add states; computed `allTransactions` + `transactionsGroupedByDay`.
+**Properties:** `embedded: Bool = false` (hides title/toolbar and scroll background when true); `@State` picker/edit/add states; computed `allTransactions` (validated, date desc).
 
-**SwiftUI body:** Day-sectioned list ("Aujourd'hui"/"Hier"/full date headers) of `TransactionRow`s with edit tap and animated delete swipe; tappable empty state; when not embedded: "Toutes les transactions" title + person toolbar.
+**SwiftUI body:** `DayGroupedTransactionSections(transactions: allTransactions)` inside a `List` (day headers "Aujourd'hui"/"Hier"/full date, edit tap, animated delete swipe); tappable empty state; when not embedded: "Toutes les transactions" title + person toolbar.
 
 ---
 
@@ -1134,7 +1224,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Concurrency Model:**
 - `AccountsManager` is `@MainActor` (and therefore implicitly `Sendable`); every model read/write, every view interaction, and all five `@Model` classes live on the main actor (`ModelContainer.mainContext` requirement).
-- `async/await` appears in exactly three places: `CloudKitService.checkAccountStatus()`/`verifyContainerAccess()`/`subscribeToAnnouncements()` (CKContainer async APIs, called from `Task`s in ContentView/FinoriaApp); the `CSVExport` `FileRepresentation` exporting closure (a `@Sendable` background closure that `await`s the main-actor snapshot `beginCSVExport()`, then builds the file off-main); and the `Task { @MainActor in endCSVExport() }` spinner reset.
+- `async/await` appears in: `CloudKitService.checkAccountStatus()`/`verifyContainerAccess()`/`subscribeToAnnouncements()` (CKContainer async APIs, called from `Task`s in ContentView/FinoriaApp); and HomeTabView's CSV export — `prepareCSV()` runs inside a `.task(id:)`, takes the main-actor snapshot `csvExportSnapshot()`, then `await`s a `Task.detached` that builds the file off-main.
 - `CSVService.ExportRow` is the only purpose-built `Sendable` value type; it exists so transaction data can legally cross from the main actor to the export closure.
 - The project compiles in **Swift 5 language mode** — these annotations are design contracts, not yet compiler-enforced. Enable `SWIFT_STRICT_CONCURRENCY = complete` before migrating to Swift 6 mode.
 
@@ -1146,7 +1236,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | Selected account id | AccountsManager | `var selectedAccountId: UUID?` (observed; mirrored to UserDefaults) | App-wide; device-local preference |
 | Selected account object | AccountsManager | `var selectedAccount: Account?` (computed fetch) | App-wide, derived |
 | Data invalidation token | AccountsManager | `private(set) var dataVersion: Int` (observed) | App-wide — bumped by every persist/foreground refresh |
-| CSV export in progress | AccountsManager | `private(set) var isExportingCSV: Bool` (observed) | Home toolbar spinner |
+| Pre-generated CSV export file | HomeTabView | `@State var csvURL: URL?` | Ready-to-share export, regenerated by `.task(id:)` on account/data change |
 | Last persistence error | AccountsManager | `var lastPersistenceError: String?` (observed) | App-wide; not yet surfaced by any view |
 | Account lists | ContentView, AccountPickerView | `@Query(sort: \Account.name)` | Per-view, live |
 | Onboarding seen | ContentView | `@AppStorage(AppStorageKeys.hasSeenWelcome)` | Persistent, device-local |

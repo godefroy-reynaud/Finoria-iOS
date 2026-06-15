@@ -43,7 +43,7 @@
 
 ## Architecture
 
-Finoria uses the modern **MV (Model–View) pattern** — there are no ViewModels. SwiftData `@Model` classes are the domain model, SwiftUI views read state directly, and a single `@MainActor @Observable` class, **`AccountsManager`**, is the **only write path**: every insert, update, and delete goes through it, and each mutation ends in a private `persist()` that calls `modelContext.save()`. Stateless service types (`CalculationService`, `RecurrenceEngine`, `CSVService`, `CloudKitService`, `SwiftDataService`) hold the actual business logic; the manager orchestrates them.
+Finoria uses the modern **MV (Model–View) pattern** — there are no ViewModels. SwiftData `@Model` classes are the domain model, SwiftUI views read state directly, and a single `@MainActor @Observable` class, **`AccountsManager`**, is the **only write path**: every insert, update, and delete goes through it, and each mutation ends in an internal `persist()` that calls `modelContext.save()`. Stateless service types (`CalculationService`, `RecurrenceEngine`, `CSVService`, `CloudKitService`, `SwiftDataService`) hold the actual business logic; the manager orchestrates them. `AccountsManager`'s implementation is split across per-domain extension files (`AccountsManager+Accounts/Transactions/CustomCategories/Calculations/Shortcuts/CSV/Recurring.swift`); the core file keeps only the observed state, the lifecycle, and the shared persistence helpers (`persist()`, `firstAccount()`).
 
 **Reads follow two routes.** Account *lists* come straight from SwiftData via `@Query` (lazy, auto-updating — used by `ContentView` and `AccountPickerView`). Everything scoped to the *selected* account (transactions, shortcuts, recurrences, totals) is read through `AccountsManager` helper methods, which all funnel through the computed `selectedAccount` property (a targeted `fetchLimit = 1` fetch keyed on the observed `selectedAccountId`). Because SwiftData's inverse-relationship observation is not reliable enough to drive UI refresh on its own, the manager maintains an observed **`dataVersion` token**: `persist()` and `refreshFromStore()` increment it, and the read helpers touch it during view-body evaluation — so every committed mutation invalidates exactly the views that display manager-derived data. If you ever add a read path that bypasses `selectedAccount`, read `dataVersion` inside it.
 
@@ -71,7 +71,14 @@ Finoria-iOS/
     │   ├── WidgetShortcut.swift          # @Model one-tap transaction template
     │   ├── CustomTransactionCategory.swift  # @Model per-account user-defined category
     │   ├── TransactionCategory.swift     # 32-case built-in category enum + keyword auto-detection
-    │   ├── AccountsManager.swift         # Central @Observable @MainActor data manager — single write path
+    │   ├── AccountsManager.swift         # Central @Observable @MainActor manager — core state, lifecycle, persist()
+    │   ├── AccountsManager+Accounts.swift         # Account CRUD
+    │   ├── AccountsManager+Transactions.swift     # Transaction CRUD + transactions()
+    │   ├── AccountsManager+CustomCategories.swift # Custom category CRUD + CSV re-link
+    │   ├── AccountsManager+Calculations.swift     # Totals & filters (delegate to CalculationService)
+    │   ├── AccountsManager+Shortcuts.swift        # Widget shortcut CRUD
+    │   ├── AccountsManager+CSV.swift              # CSV export snapshot + import
+    │   ├── AccountsManager+Recurring.swift        # Recurrence CRUD + processRecurringTransactions()
     │   └── AppStorageKeys.swift          # Centralized UserDefaults key constants
     ├── Services/
     │   ├── SwiftDataService.swift        # ModelContainer factories: CloudKit / local fallback / in-memory preview
@@ -80,7 +87,9 @@ Finoria-iOS/
     │   ├── CSVService.swift              # RFC 4180 CSV export (off-main, Sendable rows) + import parser
     │   └── CloudKitService.swift         # iCloud account diagnostics + announcements push subscription
     ├── Extensions/
-    │   ├── StylableEnum.swift            # Style protocol + category picker views + compactAmount()  ⚠ mixed roles
+    │   ├── StylableEnum.swift            # Style protocol (icon/color/label) — adopted by AccountStyle & TransactionCategory
+    │   ├── AmountFormatting.swift        # compactAmount(_:) — locale-aware compact amount formatter
+    │   ├── TransactionGrouping.swift     # [Transaction].groupedByDay() — day-grouping helper
     │   ├── ViewModifiers.swift           # Adaptive background, account-picker toolbar, day headers, currency fmt
     │   ├── ColorHex.swift                # Color ↔ "#RRGGBB" conversion for custom categories
     │   └── DateFormatting.swift          # Date.monthName(_:) French month names
@@ -91,7 +100,8 @@ Finoria-iOS/
         ├── DatabaseErrorView.swift       # Full-screen error when the DB cannot initialize
         ├── DocumentPicker.swift          # UIDocumentPickerViewController wrapper for CSV import
         ├── Account/                      # AccountCardView, AccountPickerView (@Query), AddAccountSheet
-        ├── Components/                   # CurrencyTextField (€ amount field)
+        ├── Components/                   # CurrencyTextField, AccountCategoryPicker, TransactionCategoryPicker,
+        │                                 #   StyleIconView, DayGroupedTransactionSections
         ├── Transactions/                 # AddTransactionView, TransactionRow, AddCustomTransactionCategorySheet
         ├── Recurring/                    # AddRecurringTransactionView, RecurringTransactionsGridView
         ├── Widget/                       # AddWidgetShortcutView + Toast/ (ToastData, ToastView, ToastCard)
@@ -131,7 +141,7 @@ All five persisted types are SwiftData `@Model` classes. For CloudKit compatibil
 
 ## Development Notes
 
-**Concurrency.** `AccountsManager` is `@MainActor @Observable`; all model reads/writes happen on the main actor (required by `ModelContainer.mainContext`). The one deliberately off-main code path is CSV export: `beginCSVExport()` snapshots transactions into `Sendable` `CSVService.ExportRow` values on the main actor, then the `Transferable` `FileRepresentation` closure builds and writes the file in the background — keeping share-sheet presentation freeze-free. The project compiles in **Swift 5 language mode**: the `@MainActor`/`Sendable` annotations are in place but not compiler-verified; enabling `SWIFT_STRICT_CONCURRENCY = complete` is the recommended next step before moving to Swift 6 mode.
+**Concurrency.** `AccountsManager` is `@MainActor @Observable`; all model reads/writes happen on the main actor (required by `ModelContainer.mainContext`). The one deliberately off-main code path is CSV export: `csvExportSnapshot()` snapshots transactions into `Sendable` `CSVService.ExportRow` values on the main actor, then the `Transferable` `FileRepresentation` closure builds and writes the file in the background — keeping share-sheet presentation freeze-free. The project compiles in **Swift 5 language mode**: the `@MainActor`/`Sendable` annotations are in place but not compiler-verified; enabling `SWIFT_STRICT_CONCURRENCY = complete` is the recommended next step before moving to Swift 6 mode.
 
 **Running the project.**
 - Open `Finoria.xcodeproj`, scheme **Finoria**, any iOS 18.0+ simulator or device (`⌘R`).
