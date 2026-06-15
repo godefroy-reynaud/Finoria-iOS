@@ -88,7 +88,11 @@ struct AnalysesView: View {
 				count: transactions.count
 			)
 		}
-		.sorted { $0.total > $1.total }
+		.sorted {
+				$0.total == $1.total
+					? $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+					: $0.total > $1.total
+			}
 	}
 	
 	private var totalAmount: Double {
