@@ -22,10 +22,8 @@
 		F810E30C2E44D4F100C2DFA9 /* AccountPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30B2E44D4F100C2DFA9 /* AccountPickerView.swift */; };
 		F810E30E2E45331900C2DFA9 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30D2E45331900C2DFA9 /* HomeView.swift */; };
 		F810E3102E46067700C2DFA9 /* WidgetShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E30F2E46067700C2DFA9 /* WidgetShortcut.swift */; };
-		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F810E3142E46082900C2DFA9 /* AddWidgetShortcutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F810E3132E46082900C2DFA9 /* AddWidgetShortcutView.swift */; };
 		F812E1FA2CC7BCFF00619857 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F812E1F92CC7BCFF00619857 /* LaunchScreen.storyboard */; };
-		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8388E732F349A380081F2F9 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8388E722F349A380081F2F9 /* Account.swift */; };
 		F8388E752F349A540081F2F9 /* AddAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8388E742F349A530081F2F9 /* AddAccountSheet.swift */; };
 		F8388E772F350F150081F2F9 /* AllTransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8388E762F350F150081F2F9 /* AllTransactionsView.swift */; };
@@ -53,6 +51,15 @@
 		F8388EB42F3E580C0081F2F9 /* AnalysesPieChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8388EB22F3E580C0081F2F9 /* AnalysesPieChart.swift */; };
 		F842F8C62CBD3AD3007D1A54 /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F842F8C52CBD3AD3007D1A54 /* Transaction.swift */; };
 		F842F8CA2CBD3B47007D1A54 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F842F8C92CBD3B47007D1A54 /* ContentView.swift */; };
+		F88E8CFA2FE0955700AAFD90 /* AccountsManager+Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF32FE0955600AAFD90 /* AccountsManager+Shortcuts.swift */; };
+		F88E8CFB2FE0955700AAFD90 /* AccountsManager+CSV.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF42FE0955600AAFD90 /* AccountsManager+CSV.swift */; };
+		F88E8CFC2FE0955700AAFD90 /* AccountsManager+Transactions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF52FE0955600AAFD90 /* AccountsManager+Transactions.swift */; };
+		F88E8CFD2FE0955700AAFD90 /* AccountsManager+CustomCategories.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF62FE0955600AAFD90 /* AccountsManager+CustomCategories.swift */; };
+		F88E8CFE2FE0955700AAFD90 /* AccountsManager+Recurring.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF72FE0955700AAFD90 /* AccountsManager+Recurring.swift */; };
+		F88E8CFF2FE0955700AAFD90 /* AccountsManager+Calculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */; };
+		F88E8D002FE0955700AAFD90 /* AccountsManager+Accounts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */; };
+		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
+		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8ACBAA12F5A1C560074CE1B /* SwiftDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */; };
 		F8ACBAA62F5A3A0A0074CE1B /* DatabaseErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA52F5A3A0A0074CE1B /* DatabaseErrorView.swift */; };
 		F8ACBAA82F5A59590074CE1B /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA72F5A59590074CE1B /* CloudKitService.swift */; };
@@ -105,10 +112,8 @@
 		F810E30B2E44D4F100C2DFA9 /* AccountPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountPickerView.swift; sourceTree = "<group>"; };
 		F810E30D2E45331900C2DFA9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		F810E30F2E46067700C2DFA9 /* WidgetShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetShortcut.swift; sourceTree = "<group>"; };
-		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F810E3132E46082900C2DFA9 /* AddWidgetShortcutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWidgetShortcutView.swift; sourceTree = "<group>"; };
 		F812E1F92CC7BCFF00619857 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F812E1FB2CC828DF00619857 /* Finoria-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Finoria-Info.plist"; sourceTree = "<group>"; };
 		F8388E722F349A380081F2F9 /* Account.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Account.swift; sourceTree = "<group>"; };
 		F8388E742F349A530081F2F9 /* AddAccountSheet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AddAccountSheet.swift; sourceTree = "<group>"; };
@@ -137,6 +142,15 @@
 		F8388EB22F3E580C0081F2F9 /* AnalysesPieChart.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AnalysesPieChart.swift; sourceTree = "<group>"; };
 		F842F8C52CBD3AD3007D1A54 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		F842F8C92CBD3B47007D1A54 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F88E8CF32FE0955600AAFD90 /* AccountsManager+Shortcuts.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Shortcuts.swift"; sourceTree = "<group>"; };
+		F88E8CF42FE0955600AAFD90 /* AccountsManager+CSV.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+CSV.swift"; sourceTree = "<group>"; };
+		F88E8CF52FE0955600AAFD90 /* AccountsManager+Transactions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Transactions.swift"; sourceTree = "<group>"; };
+		F88E8CF62FE0955600AAFD90 /* AccountsManager+CustomCategories.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+CustomCategories.swift"; sourceTree = "<group>"; };
+		F88E8CF72FE0955700AAFD90 /* AccountsManager+Recurring.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Recurring.swift"; sourceTree = "<group>"; };
+		F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Calculations.swift"; sourceTree = "<group>"; };
+		F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Accounts.swift"; sourceTree = "<group>"; };
+		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
+		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftDataService.swift; sourceTree = "<group>"; };
 		F8ACBAA42F5A22420074CE1B /* FinoriaRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinoriaRelease.entitlements; sourceTree = "<group>"; };
 		F8ACBAA52F5A3A0A0074CE1B /* DatabaseErrorView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DatabaseErrorView.swift; sourceTree = "<group>"; };
@@ -199,6 +213,13 @@
 		F810E3042E43EA7B00C2DFA9 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */,
+				F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */,
+				F88E8CF42FE0955600AAFD90 /* AccountsManager+CSV.swift */,
+				F88E8CF62FE0955600AAFD90 /* AccountsManager+CustomCategories.swift */,
+				F88E8CF72FE0955700AAFD90 /* AccountsManager+Recurring.swift */,
+				F88E8CF32FE0955600AAFD90 /* AccountsManager+Shortcuts.swift */,
+				F88E8CF52FE0955600AAFD90 /* AccountsManager+Transactions.swift */,
 				F8ACBAB12F68B3620074CE1B /* CustomTransactionCategory.swift */,
 				F8388EA02F3BD3B30081F2F9 /* TransactionCategory.swift */,
 				F8388E9E2F3BC61C0081F2F9 /* RecurringTransaction.swift */,
@@ -576,13 +597,17 @@
 				F8B818FD2F06D137002D02F2 /* HomeTabView.swift in Sources */,
 				F8388EA72F3DE67B0081F2F9 /* AnalysesTabView.swift in Sources */,
 				F8ACBAAC2F5EF2970074CE1B /* WelcomeView.swift in Sources */,
+				F88E8CFE2FE0955700AAFD90 /* AccountsManager+Recurring.swift in Sources */,
 				F8388E8B2F3563CC0081F2F9 /* DateFormatting.swift in Sources */,
 				F8B818FF2F06D14E002D02F2 /* CalendrierMainView.swift in Sources */,
 				F810E2F12E428FFB00C2DFA9 /* AccountCardView.swift in Sources */,
 				F8388E752F349A540081F2F9 /* AddAccountSheet.swift in Sources */,
 				F810E2FB2E43D2CB00C2DFA9 /* MonthsView.swift in Sources */,
 				F810E3012E43E42800C2DFA9 /* TransactionsListView.swift in Sources */,
+				F88E8CFA2FE0955700AAFD90 /* AccountsManager+Shortcuts.swift in Sources */,
+				F88E8CFC2FE0955700AAFD90 /* AccountsManager+Transactions.swift in Sources */,
 				F8388EA12F3BD3B30081F2F9 /* TransactionCategory.swift in Sources */,
+				F88E8CFF2FE0955700AAFD90 /* AccountsManager+Calculations.swift in Sources */,
 				F800A3EA2E4DF80C00918507 /* CalendrierRoute.swift in Sources */,
 				F8388E912F3564140081F2F9 /* HomeComponents.swift in Sources */,
 				F8B79A6F2CAEC5E4002D88AE /* FinoriaApp.swift in Sources */,
@@ -601,11 +626,14 @@
 				F810E30C2E44D4F100C2DFA9 /* AccountPickerView.swift in Sources */,
 				F8388EB42F3E580C0081F2F9 /* AnalysesPieChart.swift in Sources */,
 				F8388EA62F3DE67B0081F2F9 /* CategoryBreakdownRow.swift in Sources */,
+				F88E8CFD2FE0955700AAFD90 /* AccountsManager+CustomCategories.swift in Sources */,
+				F88E8CFB2FE0955700AAFD90 /* AccountsManager+CSV.swift in Sources */,
 				F810E3102E46067700C2DFA9 /* WidgetShortcut.swift in Sources */,
 				F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */,
 				F800A3F72E5C72F200918507 /* ToastCard.swift in Sources */,
 				F8388EAA2F3DF5470081F2F9 /* CategoryTransactionsView.swift in Sources */,
 				F8ACBAB22F68B3620074CE1B /* CustomTransactionCategory.swift in Sources */,
+				F88E8D002FE0955700AAFD90 /* AccountsManager+Accounts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -945,12 +973,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F8B79A632CAEC5E4002D88AE /* Project object */;
 }
