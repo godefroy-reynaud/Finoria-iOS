@@ -245,9 +245,11 @@ struct TransactionCategoryPicker: View {
 			}
 		}
 		.padding(.horizontal, 4)
-		// Centré verticalement (et non collé en haut) pour que l'anneau de
-		// sélection de la première ligne ne soit pas rogné par le bord de la page.
-		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+		// Petit padding en haut pour que l'anneau de sélection de la première
+		// ligne ne soit pas rogné par le bord de la page, tout en gardant les
+		// lignes alignées en haut (une page à une seule ligne reste en haut).
+		.padding(.top, 4)
+		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 	}
 
 	/// Une tuile de catégorie : un appui sélectionne, un appui long ouvre un
