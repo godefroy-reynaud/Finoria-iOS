@@ -58,6 +58,10 @@
 		F88E8CFE2FE0955700AAFD90 /* AccountsManager+Recurring.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF72FE0955700AAFD90 /* AccountsManager+Recurring.swift */; };
 		F88E8CFF2FE0955700AAFD90 /* AccountsManager+Calculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */; };
 		F88E8D002FE0955700AAFD90 /* AccountsManager+Accounts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */; };
+		F88E8D022FE09C4200AAFD90 /* AmountFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D012FE09C4200AAFD90 /* AmountFormatting.swift */; };
+		F88E8D062FE09C6B00AAFD90 /* AccountCategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */; };
+		F88E8D072FE09C6B00AAFD90 /* StyleIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */; };
+		F88E8D082FE09C6B00AAFD90 /* TransactionCategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */; };
 		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8ACBAA12F5A1C560074CE1B /* SwiftDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */; };
@@ -149,6 +153,10 @@
 		F88E8CF72FE0955700AAFD90 /* AccountsManager+Recurring.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Recurring.swift"; sourceTree = "<group>"; };
 		F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Calculations.swift"; sourceTree = "<group>"; };
 		F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AccountsManager+Accounts.swift"; sourceTree = "<group>"; };
+		F88E8D012FE09C4200AAFD90 /* AmountFormatting.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AmountFormatting.swift; sourceTree = "<group>"; };
+		F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AccountCategoryPicker.swift; sourceTree = "<group>"; };
+		F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StyleIconView.swift; sourceTree = "<group>"; };
+		F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionCategoryPicker.swift; sourceTree = "<group>"; };
 		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftDataService.swift; sourceTree = "<group>"; };
@@ -320,6 +328,7 @@
 		F8388E882F3563CB0081F2F9 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D012FE09C4200AAFD90 /* AmountFormatting.swift */,
 				F8ACBAAD2F68B33E0074CE1B /* ColorHex.swift */,
 				F8388EAB2F3E3FC00081F2F9 /* ViewModifiers.swift */,
 				F8388E892F3563CB0081F2F9 /* DateFormatting.swift */,
@@ -331,6 +340,9 @@
 		F8388E8D2F3563DD0081F2F9 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D032FE09C6A00AAFD90 /* AccountCategoryPicker.swift */,
+				F88E8D042FE09C6A00AAFD90 /* StyleIconView.swift */,
+				F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */,
 				F8388E8E2F3563DD0081F2F9 /* CurrencyTextField.swift */,
 			);
 			path = Components;
@@ -603,6 +615,7 @@
 				F810E2F12E428FFB00C2DFA9 /* AccountCardView.swift in Sources */,
 				F8388E752F349A540081F2F9 /* AddAccountSheet.swift in Sources */,
 				F810E2FB2E43D2CB00C2DFA9 /* MonthsView.swift in Sources */,
+				F88E8D062FE09C6B00AAFD90 /* AccountCategoryPicker.swift in Sources */,
 				F810E3012E43E42800C2DFA9 /* TransactionsListView.swift in Sources */,
 				F88E8CFA2FE0955700AAFD90 /* AccountsManager+Shortcuts.swift in Sources */,
 				F88E8CFC2FE0955700AAFD90 /* AccountsManager+Transactions.swift in Sources */,
@@ -612,10 +625,12 @@
 				F8388E912F3564140081F2F9 /* HomeComponents.swift in Sources */,
 				F8B79A6F2CAEC5E4002D88AE /* FinoriaApp.swift in Sources */,
 				F8388EAC2F3E3FC00081F2F9 /* ViewModifiers.swift in Sources */,
+				F88E8D022FE09C4200AAFD90 /* AmountFormatting.swift in Sources */,
 				F8388E7F2F35532D0081F2F9 /* CSVService.swift in Sources */,
 				F810E2EF2E422F1E00C2DFA9 /* AccountsManager.swift in Sources */,
 				F800A3EC2E4DF82400918507 /* CalendrierTabView.swift in Sources */,
 				F842F8CA2CBD3B47007D1A54 /* ContentView.swift in Sources */,
+				F88E8D072FE09C6B00AAFD90 /* StyleIconView.swift in Sources */,
 				F810E2FF2E43DFC300C2DFA9 /* PotentialTransactionsView.swift in Sources */,
 				F8ACBAA82F5A59590074CE1B /* CloudKitService.swift in Sources */,
 				F8388E862F355B600081F2F9 /* ShortcutsGridView.swift in Sources */,
@@ -627,6 +642,7 @@
 				F8388EB42F3E580C0081F2F9 /* AnalysesPieChart.swift in Sources */,
 				F8388EA62F3DE67B0081F2F9 /* CategoryBreakdownRow.swift in Sources */,
 				F88E8CFD2FE0955700AAFD90 /* AccountsManager+CustomCategories.swift in Sources */,
+				F88E8D082FE09C6B00AAFD90 /* TransactionCategoryPicker.swift in Sources */,
 				F88E8CFB2FE0955700AAFD90 /* AccountsManager+CSV.swift in Sources */,
 				F810E3102E46067700C2DFA9 /* WidgetShortcut.swift in Sources */,
 				F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */,
