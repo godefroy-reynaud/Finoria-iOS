@@ -173,15 +173,35 @@ struct TransactionCategoryPicker: View {
 		max(1, (allItems.count + itemsPerPage - 1) / itemsPerPage)
 	}
 
+	/// Relie la position de scroll (optionnelle, type natif `scrollPosition`)
+	/// à `currentPage`. Permet aussi bien le suivi du défilement utilisateur que
+	/// le défilement programmatique (indicateur de page, synchronisation).
+	private var scrollPositionBinding: Binding<Int?> {
+		Binding(
+			get: { currentPage },
+			set: { if let newValue = $0 { currentPage = newValue } }
+		)
+	}
+
 	var body: some View {
 		VStack(spacing: 4) {
-			TabView(selection: $currentPage) {
-				ForEach(0..<totalPages, id: \.self) { page in
-					pageView(items: itemsForPage(page))
-						.tag(page)
+			// WHY: ScrollView horizontal paginé plutôt qu'un TabView `.page` —
+			// un `contextMenu` (appui long) ne se déclenche pas dans un TabView
+			// paginé (l'UIPageViewController sous-jacent capte le geste). API de
+			// pagination native iOS 17+ : même défilement physique avec accrochage
+			// et effet ressort, mais qui laisse passer le geste d'appui long.
+			ScrollView(.horizontal, showsIndicators: false) {
+				LazyHStack(spacing: 0) {
+					ForEach(0..<totalPages, id: \.self) { page in
+						pageView(items: itemsForPage(page))
+							.containerRelativeFrame(.horizontal)
+							.id(page)
+					}
 				}
+				.scrollTargetLayout()
 			}
-			.tabViewStyle(.page(indexDisplayMode: .never))
+			.scrollTargetBehavior(.paging)
+			.scrollPosition(id: scrollPositionBinding)
 			.frame(height: baseGridHeight)
 
 			if totalPages > 1 {
