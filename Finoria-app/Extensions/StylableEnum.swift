@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Protocole unifiant les enums qui ont une représentation visuelle (icône, couleur, label)
 /// Utilisé par AccountStyle et TransactionCategory pour factoriser le code
@@ -141,6 +142,8 @@ struct TransactionCategoryPicker: View {
 	@State private var sheetContext: CategorySheetContext?
 	@State private var categoryPendingDeletion: CustomTransactionCategory?
 	@State private var showingDeleteCategoryAlert = false
+	// Identité de la tuile dont le menu (popover) est ouvert via un appui long.
+	@State private var menuItemId: String?
 
 	init(
 		selectedStyle: Binding<TransactionCategory>,
@@ -175,11 +178,9 @@ struct TransactionCategoryPicker: View {
 
 	var body: some View {
 		VStack(spacing: 4) {
-			// WHY: TabView `.page` (un seul conteneur de pagination natif) plutôt
-			// qu'un ScrollView horizontal imbriquant LazyHStack + LazyVGrid — cet
-			// empilement de conteneurs « lazy » empêche le `contextMenu` des tuiles
-			// de se déclencher (bug SwiftUI connu). Ici chaque page n'a qu'une seule
-			// LazyVGrid, exactement comme ShortcutsGridView où le menu fonctionne.
+			// Pagination native via TabView `.page` : défilement physique entre
+			// les pages de catégories. L'appui long des tuiles (LongPressGesture)
+			// cohabite avec le geste de pagination.
 			TabView(selection: $currentPage) {
 				ForEach(0..<totalPages, id: \.self) { page in
 					pageView(items: itemsForPage(page))
@@ -236,9 +237,8 @@ struct TransactionCategoryPicker: View {
 
 	@ViewBuilder
 	private func pageView(items: [CategoryPickerItem]) -> some View {
-		// ForEach sur l'identité stable des items (et non sur l'index) : c'est
-		// la condition pour qu'un `contextMenu` se déclenche correctement sur
-		// chaque tuile dans une LazyVGrid — même pattern que ShortcutsGridView.
+		// ForEach sur l'identité stable des items (et non sur l'index) pour que
+		// chaque tuile garde son propre popover/gesture de façon fiable.
 		LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: columns), spacing: 16) {
 			ForEach(items) { item in
 				categoryTile(item)
@@ -248,48 +248,115 @@ struct TransactionCategoryPicker: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 	}
 
-	/// Une tuile de catégorie. Calquée sur `ShortcutCard` : un `Button` (appui =
-	/// sélection) + un `contextMenu` natif (appui long) qui s'ancre sur la tuile
-	/// pressée. Menu Modifier/Supprimer pour les catégories personnalisées,
-	/// note « non modifiable » pour les catégories d'origine.
+	/// Une tuile de catégorie : un appui sélectionne, un appui long ouvre un
+	/// `popover` ancré sur la tuile pressée. On utilise un `LongPressGesture`
+	/// (et non un `contextMenu`) car ce dernier ne se déclenche pas de façon
+	/// fiable dans une `List`/`Form` (bug SwiftUI : surligne toute la section).
+	/// Le `popover` est ancré à la vue à laquelle il est attaché → il s'affiche
+	/// au bon endroit, au-dessus de la catégorie concernée.
 	@ViewBuilder
 	private func categoryTile(_ item: CategoryPickerItem) -> some View {
-		let tile = Button {
-			handleTap(item)
-		} label: {
-			TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
-		}
-		.buttonStyle(.plain)
+		let tile = TransactionCategoryTileView(item: item, isSelected: isItemSelected(item))
+			.contentShape(Rectangle())
+			.onTapGesture {
+				handleTap(item)
+			}
+			.simultaneousGesture(
+				LongPressGesture(minimumDuration: 0.45)
+					.onEnded { _ in
+						handleLongPress(item)
+					}
+			)
 
 		switch item.kind {
-		case let .custom(id, _, _, _):
-			if let customCategory = customCategoryById[id] {
-				tile.contextMenu {
-					Button {
-						sheetContext = CategorySheetContext(category: customCategory)
-					} label: {
-						Label("Modifier", systemImage: "pencil")
-					}
-					Button(role: .destructive) {
-						categoryPendingDeletion = customCategory
-						showingDeleteCategoryAlert = true
-					} label: {
-						Label("Supprimer", systemImage: "trash")
-					}
-				}
-			} else {
-				tile
-			}
-		case .builtIn:
-			tile.contextMenu {
-				// Bouton désactivé servant de note : catégorie non modifiable.
-				Button { } label: {
-					Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
-				}
-				.disabled(true)
+		case .custom, .builtIn:
+			tile.popover(isPresented: popoverBinding(for: item)) {
+				categoryMenu(for: item)
 			}
 		case .addButton:
 			tile
+		}
+	}
+
+	/// Binding `isPresented` propre à chaque tuile : vrai uniquement pour la
+	/// tuile dont l'identité correspond à `menuItemId`.
+	private func popoverBinding(for item: CategoryPickerItem) -> Binding<Bool> {
+		Binding(
+			get: { menuItemId == item.id },
+			set: { if !$0 { menuItemId = nil } }
+		)
+	}
+
+	/// Contenu du menu présenté en popover. `.presentationCompactAdaptation(.popover)`
+	/// force une vraie bulle ancrée (avec flèche) plutôt qu'une feuille sur iPhone.
+	@ViewBuilder
+	private func categoryMenu(for item: CategoryPickerItem) -> some View {
+		Group {
+			switch item.kind {
+			case let .custom(id, _, _, _):
+				if let category = customCategoryById[id] {
+					VStack(spacing: 0) {
+						menuActionButton(title: "Modifier", systemImage: "pencil") {
+							// On ferme le popover PUIS on présente la sheet au tick
+							// suivant : éviter deux présentations simultanées (sinon
+							// la sheet ne s'affiche pas).
+							menuItemId = nil
+							DispatchQueue.main.async {
+								sheetContext = CategorySheetContext(category: category)
+							}
+						}
+						Divider()
+						menuActionButton(title: "Supprimer", systemImage: "trash", isDestructive: true) {
+							menuItemId = nil
+							DispatchQueue.main.async {
+								categoryPendingDeletion = category
+								showingDeleteCategoryAlert = true
+							}
+						}
+					}
+					.frame(width: 220)
+				}
+			case .builtIn:
+				Label("Catégorie d'origine non modifiable", systemImage: "lock.fill")
+					.font(.subheadline)
+					.foregroundStyle(.secondary)
+					.padding()
+					.frame(maxWidth: 260)
+			case .addButton:
+				EmptyView()
+			}
+		}
+		.presentationCompactAdaptation(.popover)
+	}
+
+	private func menuActionButton(
+		title: String,
+		systemImage: String,
+		isDestructive: Bool = false,
+		action: @escaping () -> Void
+	) -> some View {
+		Button(action: action) {
+			HStack {
+				Text(title)
+				Spacer()
+				Image(systemName: systemImage)
+			}
+			.font(.body)
+			.foregroundStyle(isDestructive ? Color.red : Color.primary)
+			.padding(.horizontal, 16)
+			.padding(.vertical, 12)
+			.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+	}
+
+	private func handleLongPress(_ item: CategoryPickerItem) {
+		switch item.kind {
+		case .builtIn, .custom:
+			UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+			menuItemId = item.id
+		case .addButton:
+			break
 		}
 	}
 
