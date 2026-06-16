@@ -78,7 +78,7 @@ enum CloudKitService {
 			let ckError = error as? CKError
 			// serverRejectedRequest = la subscription existe déjà côté serveur (OK)
 			// duplicateSubscription = même chose avec un autre code
-			if ckError?.code == .serverRejectedRequest || ckError?.code == .duplicateSubscription {
+			if ckError?.code == .serverRejectedRequest {
 				logger.info("CloudKit: subscription annonces existe déjà côté serveur ✓")
 				UserDefaults.standard.set(true, forKey: subscriptionSavedKey)
 			} else {
