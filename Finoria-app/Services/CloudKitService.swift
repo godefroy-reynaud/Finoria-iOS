@@ -28,15 +28,13 @@ enum CloudKitService {
 	
 	/// Container CloudKit de l'application
 	private static let container = CKContainer(identifier: "iCloud.com.godefroyinformatique.GDF-app")
-	
-	/// Clé UserDefaults pour éviter de recréer la subscription à chaque lancement
-	// WHY: Référence la constante centralisée AppStorageKeys (une seule définition).
-	private static let subscriptionSavedKey = AppStorageKeys.cloudKitAnnouncementsSubscriptionSaved
-	
+
 	// MARK: - Subscription Push Notifications
 	
 	/// Souscrit aux notifications d'annonces via CKQuerySubscription sur la base **publique**.
 	///
+	/// Appelé à chaque lancement — CloudKit écrase la subscription existante si même ID,
+	/// ce qui garantit qu'elle est toujours enregistrée (pas de désynchronisation UserDefaults).
 	/// Quand un nouveau record **Announcements** est créé (depuis le CloudKit Dashboard),
 	/// **tous** les utilisateurs ayant l'app installée reçoivent une notification push.
 	///
@@ -48,11 +46,6 @@ enum CloudKitService {
 	///    - `body` (String) — contenu de la notification
 	/// 4. Pour envoyer une notif : créer un nouveau record dans **Data → Public Database → Announcements**
 	static func subscribeToAnnouncements() async {
-		guard !UserDefaults.standard.bool(forKey: subscriptionSavedKey) else {
-			logger.info("CloudKit: subscription annonces déjà enregistrée")
-			return
-		}
-		
 		let predicate = NSPredicate(value: true)
 		let subscription = CKQuerySubscription(
 			recordType: "Announcements",
@@ -60,7 +53,7 @@ enum CloudKitService {
 			subscriptionID: "all-announcements",
 			options: [.firesOnRecordCreation]
 		)
-		
+
 		let notificationInfo = CKSubscription.NotificationInfo()
 		notificationInfo.titleLocalizationKey = "CK_ANNOUNCEMENT_TITLE"
 		notificationInfo.titleLocalizationArgs = ["title"]
@@ -69,22 +62,13 @@ enum CloudKitService {
 		notificationInfo.soundName = "default"
 		notificationInfo.shouldBadge = true
 		subscription.notificationInfo = notificationInfo
-		
+
 		do {
 			_ = try await container.publicCloudDatabase.save(subscription)
-			logger.info("CloudKit: subscription annonces créée ✓")
-			UserDefaults.standard.set(true, forKey: subscriptionSavedKey)
+			logger.info("CloudKit: subscription annonces enregistrée ✓")
 		} catch {
 			let ckError = error as? CKError
-			// serverRejectedRequest = la subscription existe déjà côté serveur (OK)
-			// duplicateSubscription = même chose avec un autre code
-			if ckError?.code == .serverRejectedRequest {
-				logger.info("CloudKit: subscription annonces existe déjà côté serveur ✓")
-				UserDefaults.standard.set(true, forKey: subscriptionSavedKey)
-			} else {
-				// Erreur réseau ou autre — on NE marque PAS comme fait : on retentera au prochain lancement
-				logger.error("CloudKit: erreur subscription annonces (\(String(describing: ckError?.code.rawValue))): \(error.localizedDescription)")
-			}
+			logger.error("CloudKit: erreur subscription annonces (\(String(describing: ckError?.code.rawValue))): \(error.localizedDescription)")
 		}
 	}
 	

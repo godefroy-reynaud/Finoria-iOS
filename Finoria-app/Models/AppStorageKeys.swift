@@ -18,7 +18,4 @@ enum AppStorageKeys {
 
 	/// L'utilisateur a vu l'écran de bienvenue au premier lancement
 	static let hasSeenWelcome = "hasSeenWelcome"
-
-	/// La subscription CloudKit aux annonces a déjà été enregistrée
-	static let cloudKitAnnouncementsSubscriptionSaved = "ck_announcements_subscription_saved_v2"
 }
