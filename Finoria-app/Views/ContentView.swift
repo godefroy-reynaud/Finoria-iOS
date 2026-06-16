@@ -41,11 +41,6 @@ struct ContentView: View {
 			// Onglet Home
 			Tab(value: TabItem.home) {
 				HomeTabView()
-					.sheet(isPresented: $showingAddTransactionSheet) {
-						if accountsManager.selectedAccount != nil {
-							AddTransactionView(initialIsPotentiel: addTransactionAsPotential)
-						}
-					}
 			} label: {
 				Label("Accueil", systemImage: "house")
 			}
@@ -66,7 +61,17 @@ struct ContentView: View {
 
 			// Onglet Futur
 			Tab(value: TabItem.futur) {
+				// WHY: la sheet "+" est ancrée ici plutôt que sur Accueil. Sur iOS 26,
+				// présenter une sheet par-dessus l'onglet VISIBLE estompe la tab bar et la
+				// teinte n'est restaurée qu'au prochain tap. Le grisé n'apparaît donc que
+				// si l'on tape "+" depuis l'onglet d'ancrage : on le place sur Futur (le
+				// moins utilisé) pour rendre ce léger défaut iOS 26 le plus rare possible.
 				FutureTabView()
+					.sheet(isPresented: $showingAddTransactionSheet) {
+						if accountsManager.selectedAccount != nil {
+							AddTransactionView(initialIsPotentiel: addTransactionAsPotential)
+						}
+					}
 			} label: {
 				Label("Futur", systemImage: "clock.arrow.circlepath")
 			}
