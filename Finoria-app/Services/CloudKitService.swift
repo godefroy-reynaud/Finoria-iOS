@@ -75,11 +75,15 @@ enum CloudKitService {
 			logger.info("CloudKit: subscription annonces créée ✓")
 			UserDefaults.standard.set(true, forKey: subscriptionSavedKey)
 		} catch {
-			if let ckError = error as? CKError, ckError.code == .serverRejectedRequest {
-				logger.info("CloudKit: subscription annonces existe déjà côté serveur")
+			let ckError = error as? CKError
+			// serverRejectedRequest = la subscription existe déjà côté serveur (OK)
+			// duplicateSubscription = même chose avec un autre code
+			if ckError?.code == .serverRejectedRequest || ckError?.code == .duplicateSubscription {
+				logger.info("CloudKit: subscription annonces existe déjà côté serveur ✓")
 				UserDefaults.standard.set(true, forKey: subscriptionSavedKey)
 			} else {
-				logger.error("CloudKit: erreur subscription annonces: \(error.localizedDescription)")
+				// Erreur réseau ou autre — on NE marque PAS comme fait : on retentera au prochain lancement
+				logger.error("CloudKit: erreur subscription annonces (\(String(describing: ckError?.code.rawValue))): \(error.localizedDescription)")
 			}
 		}
 	}

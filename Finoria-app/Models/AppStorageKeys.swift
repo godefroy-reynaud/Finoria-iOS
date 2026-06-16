@@ -20,5 +20,5 @@ enum AppStorageKeys {
 	static let hasSeenWelcome = "hasSeenWelcome"
 
 	/// La subscription CloudKit aux annonces a déjà été enregistrée
-	static let cloudKitAnnouncementsSubscriptionSaved = "ck_announcements_subscription_saved"
+	static let cloudKitAnnouncementsSubscriptionSaved = "ck_announcements_subscription_saved_v2"
 }
