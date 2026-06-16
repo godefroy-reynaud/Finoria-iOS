@@ -47,7 +47,9 @@ enum CloudKitService {
 	///    - `title` (String) — titre de la notification
 	///    - `body` (String) — contenu de la notification
 	/// 4. Pour envoyer une notif : créer un nouveau record dans **Data → Public Database → Announcements**
-	static func subscribeToAnnouncements() async {
+	/// - Returns: `nil` si la subscription a été enregistrée, sinon un message d'erreur lisible.
+	@discardableResult
+	static func subscribeToAnnouncements() async -> String? {
 		let predicate = NSPredicate(value: true)
 		let subscription = CKQuerySubscription(
 			recordType: "Announcements",
@@ -68,9 +70,12 @@ enum CloudKitService {
 		do {
 			_ = try await container.publicCloudDatabase.save(subscription)
 			logger.info("CloudKit: subscription annonces enregistrée ✓")
+			return nil
 		} catch {
 			let ckError = error as? CKError
-			logger.error("CloudKit: erreur subscription annonces (\(String(describing: ckError?.code.rawValue))): \(error.localizedDescription)")
+			let code = ckError.map { "CKError \($0.code.rawValue)" } ?? "Erreur"
+			logger.error("CloudKit: erreur subscription annonces (\(code)): \(error.localizedDescription)")
+			return "\(code) — \(error.localizedDescription)"
 		}
 	}
 
@@ -140,11 +145,15 @@ enum CloudKitService {
 			if subs.contains(where: { $0.subscriptionID == "all-announcements" }) {
 				lines.append("Subscription : ✅ active (all-announcements)")
 			} else {
-				lines.append("Subscription : ⚠️ absente — nouvelle tentative en cours…\nRelance ce diagnostic dans 5 s pour confirmer.")
-				await subscribeToAnnouncements()
+				// Tente de la créer ET capture l'erreur exacte pour l'afficher
+				if let err = await subscribeToAnnouncements() {
+					lines.append("Subscription : ❌ échec création\n\(err)")
+				} else {
+					lines.append("Subscription : ✅ créée à l'instant — relance le diagnostic pour confirmer")
+				}
 			}
 		} catch {
-			lines.append("Subscription : ❌ \(error.localizedDescription)")
+			lines.append("Subscription : ❌ lecture impossible\n\(error.localizedDescription)")
 		}
 
 		return lines.joined(separator: "\n\n")
