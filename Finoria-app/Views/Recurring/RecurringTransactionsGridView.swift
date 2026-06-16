@@ -47,16 +47,16 @@ private struct RecurringHeader: View {
 	var body: some View {
 		HStack {
 			Text("Récurrences")
-				.font(.system(size: 18, weight: .bold))
+				.scaledFont(size: 18, weight: .bold)
 			
 			Spacer()
 			
 			Button(action: onAddTap) {
 				HStack(spacing: 4) {
 					Image(systemName: "plus")
-						.font(.system(size: 12, weight: .bold))
+						.scaledFont(size: 12, weight: .bold)
 					Text("Ajouter")
-						.font(.system(size: 11, weight: .bold))
+						.scaledFont(size: 11, weight: .bold)
 				}
 				.foregroundStyle(.blue)
 				.padding(.horizontal, 12)
@@ -97,23 +97,23 @@ private struct RecurringCard: View {
 				// Texte
 				VStack(alignment: .leading, spacing: 2) {
 					Text(recurring.comment)
-						.font(.system(size: 12, weight: .medium))
+						.scaledFont(size: 12, weight: .medium)
 						.foregroundStyle(.secondary)
 						.lineLimit(1)
-					
+
 					HStack(spacing: 2) {
 						Text(recurring.type == .income ? "+" : "−")
-							.font(.system(size: 14, weight: .bold))
+							.scaledFont(size: 14, weight: .bold)
 							.foregroundStyle(recurring.type == .income ? .green : .red)
 						Text("\(compactAmount(recurring.amount)) €")
-							.font(.system(size: 14, weight: .bold))
+							.scaledFont(size: 14, weight: .bold)
 							.foregroundStyle(.primary)
 							.lineLimit(1)
 							.minimumScaleFactor(0.8)
 					}
 					
 					Text(recurring.frequency.shortLabel)
-						.font(.system(size: 10, weight: .medium))
+						.scaledFont(size: 10, weight: .medium)
 						.foregroundStyle(.tertiary)
 				}
 				

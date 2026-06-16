@@ -20,22 +20,24 @@ struct BalanceHeaderContent: View {
 		VStack(spacing: 4) {
 			if let accountName = accountName {
 				Text(accountName)
-					.font(.system(size: 17, weight: .semibold))
+					.scaledFont(size: 17, weight: .semibold)
 					.foregroundStyle(.primary)
 					.padding(.bottom, 8)
 			}
 			
 			Text("Solde total")
-				.font(.system(size: 12, weight: .bold))
+				.scaledFont(size: 12, weight: .bold)
 				.foregroundStyle(.secondary)
 				.textCase(.uppercase)
 				.tracking(2)
 			
 			if let totalCurrent = totalCurrent {
 				Text("\(totalCurrent, specifier: "%.2f") €")
-					.font(.system(size: 48, weight: .bold))
+					.scaledFont(size: 48, weight: .bold, relativeTo: .largeTitle)
 					.foregroundStyle(totalCurrent < 0 ? .red : .primary)
 					.tracking(-1)
+					.lineLimit(1)
+					.minimumScaleFactor(0.5)
 			}
 			
 			PercentageChangeIndicator(percentage: percentageChange)
@@ -54,9 +56,9 @@ struct PercentageChangeIndicator: View {
 	var body: some View {
 		HStack(spacing: 4) {
 			Image(systemName: iconName)
-				.font(.system(size: 12, weight: .semibold))
+				.scaledFont(size: 12, weight: .semibold)
 			Text(formattedText)
-				.font(.system(size: 14, weight: .semibold))
+				.scaledFont(size: 14, weight: .semibold)
 		}
 		.foregroundStyle(color)
 	}
@@ -107,12 +109,12 @@ struct QuickCardContent: View {
 			// Texte
 			VStack(alignment: .leading, spacing: 4) {
 				Text(title)
-					.font(.system(size: 15, weight: .bold))
+					.scaledFont(size: 15, weight: .bold)
 					.foregroundStyle(.primary)
 				
 				if let value = value {
 					Text("\(value, specifier: "%.2f") €")
-						.font(.system(size: 14, weight: .medium))
+						.scaledFont(size: 14, weight: .medium)
 						.foregroundStyle(.secondary)
 				}
 			}

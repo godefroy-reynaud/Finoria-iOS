@@ -28,6 +28,42 @@ extension View {
 	}
 }
 
+// MARK: - Police système redimensionnable (Dynamic Type)
+
+/// Police système qui respecte les réglages de taille de texte d'iOS (Dynamic Type),
+/// contrairement à `.font(.system(size:))` dont la taille reste figée.
+///
+/// WHY: on conserve la taille de base exacte du design (au réglage « Par défaut »
+/// le rendu est identique au pixel près), tout en laissant le texte grandir/réduire
+/// avec les préférences d'accessibilité. `relativeTo` choisit la courbe de mise à
+/// l'échelle : pour un très grand nombre on prend `.largeTitle` (croissance plus
+/// douce) afin d'éviter les débordements aux tailles d'accessibilité extrêmes.
+private struct ScaledSystemFontModifier: ViewModifier {
+	@ScaledMetric private var size: CGFloat
+	private let weight: Font.Weight
+
+	init(size: CGFloat, weight: Font.Weight, relativeTo textStyle: Font.TextStyle) {
+		_size = ScaledMetric(wrappedValue: size, relativeTo: textStyle)
+		self.weight = weight
+	}
+
+	func body(content: Content) -> some View {
+		content.font(.system(size: size, weight: weight))
+	}
+}
+
+extension View {
+	/// Remplace `.font(.system(size:weight:))` par une police équivalente qui
+	/// s'adapte aux réglages de taille de texte (Dynamic Type).
+	func scaledFont(
+		size: CGFloat,
+		weight: Font.Weight = .regular,
+		relativeTo textStyle: Font.TextStyle = .body
+	) -> some View {
+		modifier(ScaledSystemFontModifier(size: size, weight: weight, relativeTo: textStyle))
+	}
+}
+
 // MARK: - Toolbar Account Picker
 
 /// Ajoute le bouton de sélection de compte dans la toolbar + la sheet associée
