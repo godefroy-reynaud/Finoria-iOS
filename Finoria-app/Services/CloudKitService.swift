@@ -7,6 +7,8 @@
 
 import Foundation
 import CloudKit
+import UIKit
+import UserNotifications
 import os.log
 
 /// Service de diagnostic CloudKit.
@@ -71,7 +73,86 @@ enum CloudKitService {
 			logger.error("CloudKit: erreur subscription annonces (\(String(describing: ckError?.code.rawValue))): \(error.localizedDescription)")
 		}
 	}
-	
+
+	// ════════════════════════════════════════════════════════════════════════
+	// ⚠️ DEBUG — À SUPPRIMER UNE FOIS LES TESTS NOTIFS TERMINÉS
+	// ════════════════════════════════════════════════════════════════════════
+	// À retirer en fin de tests :
+	//  1. Tout ce bloc « Diagnostic Push » ci-dessous (jusqu'au prochain séparateur)
+	//  2. Les imports `import UIKit` et `import UserNotifications` en haut de ce fichier
+	//     (ajoutés uniquement pour ce diagnostic)
+	//  3. Dans HomeTabView.swift : les @State showPushDiagnostic / pushDiagnosticText,
+	//     le .simultaneousGesture(LongPressGesture…) sur le bouton d'import,
+	//     l'.alert("Diagnostic notifications"…) et la fonction runPushDiagnostic()
+	// ════════════════════════════════════════════════════════════════════════
+
+	// MARK: - Diagnostic Push (à afficher dans l'app pour debugging TestFlight)
+
+	/// Récupère toutes les subscriptions de la base publique pour le compte iCloud courant.
+	// WHY: pas d'API async stable pour fetchAllSubscriptions — on enveloppe la version
+	// à completion handler (stable depuis iOS 8) pour éviter une erreur de compilation.
+	private static func fetchAllPublicSubscriptions() async throws -> [CKSubscription] {
+		try await withCheckedThrowingContinuation { continuation in
+			container.publicCloudDatabase.fetchAllSubscriptions { subscriptions, error in
+				if let error {
+					continuation.resume(throwing: error)
+				} else {
+					continuation.resume(returning: subscriptions ?? [])
+				}
+			}
+		}
+	}
+
+	/// Diagnostic complet du système de notifications push « annonces ».
+	///
+	/// Vérifie les 4 conditions nécessaires pour recevoir une notif depuis le Dashboard :
+	/// compte iCloud connecté, permission notifications accordée, inscription APNs,
+	/// et présence de la subscription `all-announcements`. Si la subscription est
+	/// absente, tente de la recréer immédiatement.
+	/// - Returns: Un rapport lisible à afficher dans une alerte.
+	static func diagnosePush() async -> String {
+		var lines: [String] = []
+
+		// 1. Compte iCloud
+		let status = await checkAccountStatus()
+		lines.append("iCloud : " + (status.isAvailable ? "✅ connecté" : "❌ \(status.alertTitle)"))
+
+		// 2. Permission notifications
+		let settings = await UNUserNotificationCenter.current().notificationSettings()
+		switch settings.authorizationStatus {
+		case .authorized, .provisional, .ephemeral:
+			lines.append("Notifications : ✅ autorisées")
+		case .denied:
+			lines.append("Notifications : ❌ refusées\n→ Réglages › Finoria › Notifications, puis tout activer")
+		case .notDetermined:
+			lines.append("Notifications : ⏳ jamais demandées (relance l'app)")
+		@unknown default:
+			lines.append("Notifications : ❓ statut inconnu")
+		}
+
+		// 3. Inscription APNs (requise pour que CloudKit pousse les notifs)
+		let registered = await MainActor.run { UIApplication.shared.isRegisteredForRemoteNotifications }
+		lines.append("APNs : " + (registered ? "✅ enregistré" : "❌ non enregistré (vérifie la capacité Push Notifications)"))
+
+		// 4. Subscription CloudKit
+		do {
+			let subs = try await fetchAllPublicSubscriptions()
+			if subs.contains(where: { $0.subscriptionID == "all-announcements" }) {
+				lines.append("Subscription : ✅ active (all-announcements)")
+			} else {
+				lines.append("Subscription : ⚠️ absente — nouvelle tentative en cours…\nRelance ce diagnostic dans 5 s pour confirmer.")
+				await subscribeToAnnouncements()
+			}
+		} catch {
+			lines.append("Subscription : ❌ \(error.localizedDescription)")
+		}
+
+		return lines.joined(separator: "\n\n")
+	}
+	// ════════════════════════════════════════════════════════════════════════
+	// ⚠️ FIN DU BLOC DEBUG À SUPPRIMER
+	// ════════════════════════════════════════════════════════════════════════
+
 	// MARK: - Statut CloudKit
 	
 	/// Résultat du diagnostic CloudKit
