@@ -51,14 +51,20 @@ erDiagram
         String  colorHex
     }
 
-    Account ||--o{ Transaction            : "transactions · cascade"
-    Account ||--o{ WidgetShortcut         : "widgetShortcuts · cascade"
-    Account ||--o{ RecurringTransaction   : "recurringTransactions · cascade"
-    Account ||--o{ CustomTransactionCategory : "customTransactionCategories · cascade"
+    Account ||--o{ Transaction               : "1 → 0..* · transactions · cascade"
+    Account ||--o{ WidgetShortcut            : "1 → 0..* · widgetShortcuts · cascade"
+    Account ||--o{ RecurringTransaction      : "1 → 0..* · recurringTransactions · cascade"
+    Account ||--o{ CustomTransactionCategory : "1 → 0..* · customTransactionCategories · cascade"
 
-    Transaction }o--o| CustomTransactionCategory : "customCategory · nullify"
-    Transaction }o--o| RecurringTransaction       : "sourceRecurringTransaction · nullify"
+    Transaction }o--o| CustomTransactionCategory : "0..* → 0..1 · customCategory · nullify"
+    Transaction }o--o| RecurringTransaction      : "0..* → 0..1 · sourceRecurringTransaction · nullify"
 ```
+
+> **Cardinalités** — Mermaid impose la notation « patte d'oie » sur le trait
+> (`||` = exactement 1, `o{` = 0..*, `o|` = 0..1). Les multiplicités numériques
+> demandées (`1`, `0..*`, `0..1`) sont donc reportées en début de libellé de chaque
+> relation. Le diagramme de classes ([CLASS_DIAGRAM.puml](CLASS_DIAGRAM.puml), PlantUML)
+> les exprime nativement (`"1" o-- "0..*"`).
 
 ## Règles de suppression
 

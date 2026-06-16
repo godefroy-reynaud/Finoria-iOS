@@ -1,0 +1,416 @@
+@startuml Finoria
+'====================================================================
+'  Finoria — Diagramme de classes (application complète)
+'
+'  Rendu : https://www.plantuml.com/plantuml  ou  extension PlantUML
+'  Couvre : modèles SwiftData, enums, protocole, orchestrateur,
+'           services, point d'entrée et hiérarchie des vues SwiftUI.
+'====================================================================
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+skinparam class {
+  BackgroundColor White
+  BorderColor #555555
+  ArrowColor #555555
+}
+
+'====================================================================
+' MODÈLES PERSISTANTS (SwiftData @Model)
+'====================================================================
+package "Models (SwiftData)" #F4F8FB {
+
+  class Account <<@Model>> {
+    + id : UUID
+    + name : String
+    + detail : String
+    + style : AccountStyle
+    --
+    + transactions : [Transaction]            <<cascade>>
+    + widgetShortcuts : [WidgetShortcut]       <<cascade>>
+    + recurringTransactions : [RecurringTransaction] <<cascade>>
+    + customTransactionCategories : [CustomTransactionCategory] <<cascade>>
+    --
+    + init(id, name, detail, style?)
+  }
+
+  class Transaction <<@Model>> {
+    + id : UUID
+    + amount : Double
+    + comment : String
+    + potentiel : Bool
+    + date : Date?
+    + category : TransactionCategory
+    + importedCategoryName : String?
+    --
+    + account : Account?
+    + sourceRecurringTransaction : RecurringTransaction?
+    + customCategory : CustomTransactionCategory?
+    --
+    + validate(at: Date)
+    + modify(...)
+    + displayCategoryLabel : String
+    + displayCategoryIcon : String
+    + displayCategoryColor : Color
+  }
+
+  class WidgetShortcut <<@Model>> {
+    + id : UUID
+    + amount : Double
+    + comment : String
+    + type : TransactionType
+    + category : TransactionCategory
+    --
+    + account : Account?
+    + customCategory : CustomTransactionCategory?
+    --
+    + displayCategoryIcon : String
+    + displayCategoryColor : Color
+  }
+
+  class RecurringTransaction <<@Model>> {
+    + id : UUID
+    + amount : Double
+    + comment : String
+    + type : TransactionType
+    + category : TransactionCategory
+    + frequency : RecurrenceFrequency
+    + startDate : Date
+    + lastGeneratedDate : Date?
+    + isPaused : Bool
+    --
+    + account : Account?
+    + generatedTransactions : [Transaction]   <<nullify>>
+    --
+    + occurrences(from:to:) : [Date]
+    + pendingTransactions() : [(Date, Transaction)]
+  }
+
+  class CustomTransactionCategory <<@Model>> {
+    + id : UUID
+    + name : String
+    + symbol : String
+    + colorHex : String
+    --
+    + account : Account?
+    + transactions : [Transaction]            <<nullify>>
+    --
+    + resolvedColor : Color
+  }
+}
+
+'====================================================================
+' ENUMS & PROTOCOLE
+'====================================================================
+package "Domain Enums & Protocols" #FBF7F0 {
+
+  interface StylableEnum <<protocol>> {
+    + icon : String
+    + color : Color
+    + label : String
+  }
+
+  enum AccountStyle <<enum>> {
+    bank
+    savings
+    investment
+    business
+    travel
+    grocery
+    student
+    family
+    property
+    entertainment
+    --
+    {static} guessFrom(name:) : AccountStyle
+  }
+
+  enum TransactionType <<enum>> {
+    income ("+")
+    expense ("-")
+    --
+    + label : String
+  }
+
+  enum TransactionCategory <<enum>> {
+    salary / income / freelance / bonus
+    rent / utilities / home
+    subscription / phone / insurance
+    food / grocery / coffee
+    fuel / transport / car
+    loan / savings / investment / tax
+    shopping / party / sport / travel / culture
+    family / health / gift / education / pet
+    expense / other
+    --
+    {static} guessFrom(comment:type:) : TransactionCategory
+  }
+
+  enum RecurrenceFrequency <<enum>> {
+    daily
+    weekly
+    monthly
+    yearly
+    --
+    + label : String
+    + shortLabel : String
+  }
+}
+
+'====================================================================
+' ORCHESTRATEUR (source de vérité)
+'====================================================================
+package "Orchestration" #F2F7F2 {
+
+  class AccountsManager <<@Observable>> <<@MainActor>> {
+    - modelContext : ModelContext
+    + selectedAccountId : UUID?
+    + selectedAccount : Account?
+    + lastPersistenceError : String?
+    - dataVersion : Int
+    --
+    .. Cycle de vie / persistance ..
+    + init(modelContext:)
+    + persist()
+    + saveData()
+    + refreshFromStore()
+    {static} preview : AccountsManager
+    {static} normalizeCategoryName(_:) : String
+    --
+    .. +Accounts ..
+    + addAccount() / deleteAccount() / updateAccount() / resetAccount()
+    .. +Transactions ..
+    + addTransaction() / deleteTransaction() / validateTransaction()
+    + updateTransaction() / transactions()
+    .. +CustomCategories ..
+    + addCustomTransactionCategory() / updateCustomTransactionCategory()
+    + deleteCustomTransactionCategory() / customTransactionCategories()
+    .. +Shortcuts ..
+    + addWidgetShortcut() / deleteWidgetShortcut()
+    + updateWidgetShortcut() / getWidgetShortcuts()
+    .. +Recurring ..
+    + addRecurringTransaction() / deleteRecurringTransaction()
+    + updateRecurringTransaction() / pause() / resume()
+    + processRecurringTransactions() / getRecurringTransactions()
+    .. +Calculations (délégués) ..
+    + totalNonPotential() / totalPotential() / availableYears()
+    + totalForYear() / totalForMonth() / monthlyChangePercentage()
+    + potentialTransactions() / validatedTransactions()
+    .. +CSV ..
+    + csvExportSnapshot() / importCSV(from:)
+  }
+}
+
+'====================================================================
+' SERVICES
+'====================================================================
+package "Services" #F7F2F7 {
+
+  class SwiftDataService <<enum/namespace>> {
+    {static} models : [PersistentModel.Type]
+    {static} makeContainer() : ModelContainer
+    {static} makeFallbackContainer() : ModelContainer
+    {static} makePreviewContainer() : ModelContainer
+  }
+
+  class RecurrenceEngine <<struct>> {
+    {static} processAll(accounts:context:) : Bool
+    {static} removePotentialTransactions(for:context:)
+  }
+
+  class CalculationService <<struct>> {
+    {static} totalNonPotential(transactions:) : Double
+    {static} totalPotential(transactions:) : Double
+    {static} availableYears(transactions:) : [Int]
+    {static} totalForYear(_:transactions:) : Double
+    {static} totalForMonth(_:year:transactions:) : Double
+    {static} monthlyChangePercentage(transactions:) : Double?
+    {static} potentialTransactions(from:) : [Transaction]
+    {static} validatedTransactions(...) : [Transaction]
+  }
+
+  class CSVService <<struct>> {
+    {static} generateCSV(rows:accountName:) : URL?
+    {static} importCSV(from:) : [Transaction]
+  }
+
+  class "CSVService.ExportRow" as ExportRow <<struct>> {
+    + date : Date?
+    + amount : Double
+    + comment : String
+    + categoryLabel : String
+  }
+
+  class CloudKitService <<enum/namespace>> {
+    {static} subscribeToAnnouncements() async
+    {static} checkAccountStatus() async : CloudKitStatus
+  }
+
+  enum CloudKitStatus <<enum>> {
+    available
+    noAccount
+    restricted
+    temporarilyUnavailable
+    couldNotDetermine
+    error(String)
+    --
+    + userMessage : String
+  }
+
+  class NotificationManager <<struct>> {
+    {static} shared : NotificationManager
+    + requestNotificationPermission()
+    + scheduleWeeklyNotificationIfNeeded()
+    + listScheduledNotifications()
+    + resetNotifications()
+  }
+
+  class AppStorageKeys <<enum/namespace>> {
+    {static} lastSelectedAccountId : String
+    {static} hasSeenWelcome : String
+    {static} cloudKitAnnouncementsSubscriptionSaved : String
+  }
+}
+
+'====================================================================
+' POINT D'ENTRÉE
+'====================================================================
+package "App Entry" #FBFBF2 {
+
+  class FinoriaApp <<@main>> <<App>> {
+    - modelContainer : ModelContainer?
+    - initErrorMessage : String?
+    - accountsManager : AccountsManager?
+    + appDelegate : AppDelegate
+    + body : Scene
+  }
+
+  class AppDelegate <<UIApplicationDelegate>> {
+    + application(didFinishLaunching...)
+    + application(didRegisterForRemoteNotifications...)
+    + userNotificationCenter(willPresent...)
+  }
+}
+
+'====================================================================
+' VUES (SwiftUI) — hiérarchie principale
+'====================================================================
+package "Views (SwiftUI)" #F2F4FB {
+
+  class ContentView <<View>> {
+    enum TabItem { home, analyses, calendrier, futur, add }
+  }
+
+  class HomeTabView <<View>>
+  class AnalysesTabView <<View>>
+  class CalendrierMainView <<View>>
+  class FutureTabView <<View>>
+
+  class AddTransactionView <<View>>
+  class AddRecurringTransactionView <<View>>
+  class AddWidgetShortcutView <<View>>
+  class AddAccountSheet <<View>>
+  class AddCustomTransactionCategorySheet <<View>>
+  class AccountPickerView <<View>>
+
+  class WelcomeView <<View>>
+  class NoAccountView <<View>>
+  class DatabaseErrorView <<View>>
+
+  class "Reusable Components" as Components <<View>> {
+    TransactionRow
+    TransactionCategoryPicker
+    AccountCategoryPicker<Style>
+    StyleIconView<Style>
+    CurrencyTextField
+    DayGroupedTransactionSections
+    ShortcutsGridView
+    RecurringTransactionsGridView
+    AnalysesPieChart / CategoryBreakdownRow
+    ToastView / ToastCard
+  }
+}
+
+'====================================================================
+' RELATIONS — Modèles (cardinalités UML)
+'====================================================================
+Account "1" o-- "0..*" Transaction              : transactions\ncascade
+Account "1" o-- "0..*" WidgetShortcut            : widgetShortcuts\ncascade
+Account "1" o-- "0..*" RecurringTransaction       : recurringTransactions\ncascade
+Account "1" o-- "0..*" CustomTransactionCategory  : customTransactionCategories\ncascade
+
+Transaction "0..*" --> "0..1" CustomTransactionCategory : customCategory\nnullify
+Transaction "0..*" --> "0..1" RecurringTransaction      : sourceRecurringTransaction\nnullify
+
+'====================================================================
+' RELATIONS — Enums / protocole
+'====================================================================
+AccountStyle ..|> StylableEnum
+TransactionCategory ..|> StylableEnum
+
+Account ..> AccountStyle : use
+Transaction ..> TransactionCategory : use
+WidgetShortcut ..> TransactionType : use
+WidgetShortcut ..> TransactionCategory : use
+RecurringTransaction ..> TransactionType : use
+RecurringTransaction ..> TransactionCategory : use
+RecurringTransaction ..> RecurrenceFrequency : use
+
+'====================================================================
+' RELATIONS — Orchestrateur & services
+'====================================================================
+AccountsManager ..> Account : CRUD / fetch
+AccountsManager ..> RecurrenceEngine : delegate
+AccountsManager ..> CalculationService : delegate
+AccountsManager ..> CSVService : delegate
+AccountsManager ..> SwiftDataService : preview
+
+RecurrenceEngine ..> RecurringTransaction
+RecurrenceEngine ..> Transaction
+CalculationService ..> Transaction
+CSVService ..> Transaction
+CSVService +-- ExportRow
+CloudKitService ..> CloudKitStatus
+CloudKitService ..> AppStorageKeys
+AccountsManager ..> AppStorageKeys
+
+'====================================================================
+' RELATIONS — App entry
+'====================================================================
+FinoriaApp *--> "0..1" AccountsManager
+FinoriaApp *--> AppDelegate
+FinoriaApp ..> SwiftDataService : makeContainer
+FinoriaApp ..> CloudKitService : subscribe
+FinoriaApp ..> NotificationManager
+FinoriaApp ..> ContentView : root
+FinoriaApp ..> DatabaseErrorView : fallback
+
+'====================================================================
+' RELATIONS — Vues
+'====================================================================
+ContentView *-- HomeTabView
+ContentView *-- AnalysesTabView
+ContentView *-- CalendrierMainView
+ContentView *-- FutureTabView
+ContentView ..> AddTransactionView
+ContentView ..> WelcomeView
+
+HomeTabView ..> AddWidgetShortcutView
+HomeTabView ..> AccountPickerView
+AccountPickerView ..> AddAccountSheet
+FutureTabView ..> AddRecurringTransactionView
+AddTransactionView ..> AddCustomTransactionCategorySheet
+
+ContentView ..> AccountsManager : @Environment
+HomeTabView ..> AccountsManager : @Environment
+AnalysesTabView ..> AccountsManager : @Environment
+CalendrierMainView ..> AccountsManager : @Environment
+FutureTabView ..> AccountsManager : @Environment
+
+Components ..> StylableEnum : generic over
+
+@enduml
