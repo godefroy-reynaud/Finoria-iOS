@@ -40,17 +40,27 @@ enum CloudKitService {
 	/// Quand un nouveau record **Announcements** est créé (depuis le CloudKit Dashboard),
 	/// **tous** les utilisateurs ayant l'app installée reçoivent une notification push.
 	///
-	/// ### Configuration requise dans le CloudKit Dashboard :
+	/// ### Configuration requise dans le CloudKit Dashboard (en **Development** puis Deploy) :
 	/// 1. Aller sur https://icloud.developer.apple.com
 	/// 2. Sélectionner le container `iCloud.com.godefroyinformatique.GDF-app`
 	/// 3. Dans **Schema → Record Types**, créer le type **Announcements** avec :
-	///    - `title` (String) — titre de la notification
+	///    - `title` (String) — titre de la notification — **marqué QUERYABLE** (requis
+	///      par le prédicat ci-dessous ; sans ça la subscription ne se crée pas)
 	///    - `body` (String) — contenu de la notification
-	/// 4. Pour envoyer une notif : créer un nouveau record dans **Data → Public Database → Announcements**
+	/// 4. **Deploy Schema Changes** vers Production
+	/// 5. Pour envoyer une notif : créer un record dans **Data → Public Database → Announcements**
+	///    en renseignant `title` (et `body`)
 	/// - Returns: `nil` si la subscription a été enregistrée, sinon un message d'erreur lisible.
 	@discardableResult
 	static func subscribeToAnnouncements() async -> String? {
-		let predicate = NSPredicate(value: true)
+		// WHY: NSPredicate(value: true) / TRUEPREDICATE est REFUSÉ en environnement
+		// Production (CKError 12 « attempting to create a subscription in a production
+		// container ») — il passe seulement en Development. Production exige un prédicat
+		// « réel » sur un champ queryable. `title != ""` matche toutes les annonces
+		// (on met toujours un titre) tout en étant un vrai prédicat serveur.
+		// ⚠️ Le champ `title` doit être marqué QUERYABLE dans le schéma (Dashboard) et
+		//    déployé en Production, sinon la création de la subscription échoue.
+		let predicate = NSPredicate(format: "title != %@", "")
 		let subscription = CKQuerySubscription(
 			recordType: "Announcements",
 			predicate: predicate,
