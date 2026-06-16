@@ -187,6 +187,7 @@ struct AnalysesView: View {
 					.contentShape(Rectangle())
 			}
 			.buttonStyle(PlainButtonStyle())
+			.accessibilityLabel("Mois précédent")
 			
 			Spacer()
 			
@@ -210,6 +211,7 @@ struct AnalysesView: View {
 			}
 			.buttonStyle(PlainButtonStyle())
 			.disabled(!canGoNext)
+			.accessibilityLabel("Mois suivant")
 		}
 	}
 	

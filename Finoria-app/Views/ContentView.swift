@@ -81,6 +81,7 @@ struct ContentView: View {
 				Color.clear
 			} label: {
 				Label("", systemImage: "plus.circle.fill")
+					.accessibilityLabel("Ajouter une transaction")
 			}
 		}
 		.onChange(of: tabSelection) { oldValue, newValue in

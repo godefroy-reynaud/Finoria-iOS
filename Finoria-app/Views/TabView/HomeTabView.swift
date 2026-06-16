@@ -46,6 +46,7 @@ struct HomeTabView: View {
 												.imageScale(.large)
 												.padding(8)
 										}
+										.accessibilityLabel("Exporter en CSV")
 									} else {
 										Button { showNoTransactionAlert = true } label: {
 											Image(systemName: "square.and.arrow.up")
@@ -53,12 +54,14 @@ struct HomeTabView: View {
 												.padding(8)
 										}
 										.foregroundStyle(.tertiary)
+										.accessibilityLabel("Exporter en CSV")
 									}
 									Button { showingDocumentPicker = true } label: {
 										Image(systemName: "square.and.arrow.down")
 											.imageScale(.large)
 											.padding(8)
 									}
+									.accessibilityLabel("Importer un CSV")
 								}
 							}
 						}

@@ -20,6 +20,7 @@ struct TransactionRow: View {
 				Image(systemName: transaction.displayCategoryIcon)
 					.font(.system(size: 16))
 					.foregroundStyle(transaction.displayCategoryColor)
+					.accessibilityLabel(transaction.displayCategoryLabel)
 			}
 			
 			VStack(alignment: .leading) {

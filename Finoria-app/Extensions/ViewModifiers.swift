@@ -45,6 +45,7 @@ struct AccountPickerToolbarModifier: ViewModifier {
 					} label: {
 						Image(systemName: "person.crop.circle")
 							.imageScale(.large)
+							.accessibilityLabel("Changer de compte")
 					}
 				}
 			}

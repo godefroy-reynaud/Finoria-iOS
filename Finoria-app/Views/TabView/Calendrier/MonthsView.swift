@@ -40,6 +40,7 @@ struct MonthsView: View {
 					} label: {
 						Image(systemName: "person.crop.circle")
 							.font(.title2)
+							.accessibilityLabel("Changer de compte")
 					}
 				}
 			}
