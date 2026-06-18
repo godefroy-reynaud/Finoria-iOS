@@ -31,20 +31,33 @@ final class SchemaMigrationTests: XCTestCase {
 	/// ne perdront rien en installant le build qui introduit le schéma versionné.
 	@MainActor
 	func testCurrentSchema_roundTripsAllModelsWithoutLoss() throws {
-		let url = URL.temporaryDirectory.appending(path: "finoria-roundtrip-\(UUID().uuidString).store")
-		defer { try? FileManager.default.removeItem(at: url) }
+		// Dossier temporaire DÉDIÉ : il contient le store ET ses fichiers annexes
+		// (-wal, -shm). On supprime TOUT le dossier à la fin (pas seulement le .store) —
+		// c'est ce nettoyage partiel de l'ancienne version qui faisait échouer le test
+		// avec « Impossible de supprimer … » (les fichiers -wal/-shm restaient).
+		let storeDir = URL.temporaryDirectory
+			.appending(path: "finoria-roundtrip-\(UUID().uuidString)", directoryHint: .isDirectory)
+		try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: storeDir) }
+		let url = storeDir.appending(path: "Finoria.store")
 
 		let accountID = UUID()
 
-		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations)
-		//    Pas de migrationPlan ici : on crée un store NEUF (= "données déjà
-		//    présentes d'une version précédente"). Le plan ne sert qu'à la
-		//    RÉOUVERTURE (étape 2) — le passer à la création d'un store vide met
-		//    SwiftData dans un état de fichiers incohérent.
+		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations),
+		//    EXACTEMENT comme l'app en production : conteneur créé AVEC le plan de
+		//    migration. `SwiftDataService.makeContainer()` le passe TOUJOURS, même à
+		//    la toute première création du store — le test doit faire pareil pour
+		//    refléter le vrai comportement (et éviter une réouverture qui croit devoir
+		//    « migrer » un store non versionné). Le `do {}` libère ce premier conteneur
+		//    (fermeture du store) avant la réouverture de l'étape 2.
 		do {
 			let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
 			let config = ModelConfiguration(schema: schema, url: url)
-			let container = try ModelContainer(for: schema, configurations: config)
+			let container = try ModelContainer(
+				for: schema,
+				migrationPlan: FinoriaMigrationPlan.self,
+				configurations: config
+			)
 			let ctx = container.mainContext
 
 			let account = Account(id: accountID, name: "Compte test", detail: "détail")
