@@ -23,10 +23,6 @@ struct HomeTabView: View {
 	@State private var pendingImport: [Transaction] = []
 	@State private var showImportConfirmation = false
 
-	// ⚠️ DEBUG — À SUPPRIMER après tests notifs (voir CloudKitService.swift)
-	@State private var showPushDiagnostic = false
-	@State private var pushDiagnosticText = ""
-
 	// WHY: combinaison account + dataVersion comme identifiant de tâche — la tâche
 	// redémarre dès qu'un compte est changé (persistentModelID change) OU qu'une
 	// transaction est modifiée/ajoutée/supprimée (dataVersion s'incrémente dans
@@ -71,12 +67,6 @@ struct HomeTabView: View {
 											.padding(8)
 									}
 									.accessibilityLabel("Importer un CSV")
-									// ⚠️ DEBUG — À SUPPRIMER après tests notifs : appui long = diagnostic push
-									.simultaneousGesture(
-										LongPressGesture(minimumDuration: 1.5).onEnded { _ in
-											runPushDiagnostic()
-										}
-									)
 								}
 							}
 						}
@@ -114,12 +104,6 @@ struct HomeTabView: View {
 						} message: {
 							Text("\(pendingImport.count) transaction(s) vont être ajoutées à ce compte.\n\nLes transactions existantes ne sont pas remplacées : réimporter le même fichier crée des doublons.")
 						}
-						// ⚠️ DEBUG — À SUPPRIMER après tests notifs (voir CloudKitService.swift)
-						.alert("Diagnostic notifications", isPresented: $showPushDiagnostic) {
-							Button("OK", role: .cancel) {}
-						} message: {
-							Text(pushDiagnosticText)
-						}
 				} else {
 					NoAccountView()
 				}
@@ -139,17 +123,6 @@ struct HomeTabView: View {
 			CSVService.generateCSV(rows: snapshot.rows, accountName: snapshot.accountName)
 		}.value
 		csvURL = newURL
-	}
-
-	// ⚠️ DEBUG — À SUPPRIMER après tests notifs (voir CloudKitService.swift)
-	private func runPushDiagnostic() {
-		Task {
-			let report = await CloudKitService.diagnosePush()
-			await MainActor.run {
-				pushDiagnosticText = report
-				showPushDiagnostic = true
-			}
-		}
 	}
 
 	// MARK: - Import CSV

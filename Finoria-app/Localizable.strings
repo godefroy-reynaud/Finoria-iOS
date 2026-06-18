@@ -1,5 +1,3 @@
-/* Notifications push CloudKit — Annonces */
-/* %1$@ est remplacé par la valeur du champ correspondant du record Announcements */
-
-"CK_ANNOUNCEMENT_TITLE" = "%1$@";
-"CK_ANNOUNCEMENT_BODY" = "%1$@";
+/* Fichier de localisation Finoria. */
+/* (Les clés des notifications d'annonces CloudKit ont été retirées — */
+/*  voir ARCHIVE_notifications-distantes.md à la racine du projet.) */

@@ -65,14 +65,9 @@ struct FinoriaApp: App {
 			// 2. Créer l'AccountsManager avec le contexte du conteneur
 			_accountsManager = State(initialValue: AccountsManager(modelContext: container.mainContext))
 
-			// 3. Notifications (uniquement si l'app est fonctionnelle)
+			// 3. Notifications locales (uniquement si l'app est fonctionnelle)
 			NotificationManager.shared.requestNotificationPermission()
 			NotificationManager.shared.scheduleWeeklyNotificationIfNeeded()
-
-			// 4. Subscription CloudKit pour les notifications push (annonces)
-			Task {
-				await CloudKitService.subscribeToAnnouncements()
-			}
 		} else {
 			_accountsManager = State(initialValue: nil)
 		}
