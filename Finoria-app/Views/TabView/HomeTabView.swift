@@ -18,6 +18,11 @@ struct HomeTabView: View {
 	@State private var csvURL: URL? = nil
 	@State private var showNoTransactionAlert = false
 
+	// Confirmation avant import : transactions lues dans le fichier mais pas encore
+	// enregistrées. On attend que l'utilisateur confirme le nombre avant d'écrire.
+	@State private var pendingImport: [Transaction] = []
+	@State private var showImportConfirmation = false
+
 	// ⚠️ DEBUG — À SUPPRIMER après tests notifs (voir CloudKitService.swift)
 	@State private var showPushDiagnostic = false
 	@State private var pushDiagnosticText = ""
@@ -86,7 +91,7 @@ struct HomeTabView: View {
 							await prepareCSV()
 						}
 						.sheet(isPresented: $showingDocumentPicker) {
-							DocumentPicker { url in importCSV(from: url) }
+							DocumentPicker { url in handlePickedCSV(from: url) }
 						}
 						.alert("Import réussi", isPresented: $showImportSuccessAlert) {
 							Button("OK", role: .cancel) {}
@@ -102,6 +107,12 @@ struct HomeTabView: View {
 							Button("OK", role: .cancel) {}
 						} message: {
 							Text("Aucune transaction n'a pu être importée. Vérifiez le format du fichier CSV.")
+						}
+						.alert("Confirmer l'import", isPresented: $showImportConfirmation) {
+							Button("Importer") { confirmImport() }
+							Button("Annuler", role: .cancel) { pendingImport = [] }
+						} message: {
+							Text("\(pendingImport.count) transaction(s) vont être ajoutées à ce compte.\n\nLes transactions existantes ne sont pas remplacées : réimporter le même fichier crée des doublons.")
 						}
 						// ⚠️ DEBUG — À SUPPRIMER après tests notifs (voir CloudKitService.swift)
 						.alert("Diagnostic notifications", isPresented: $showPushDiagnostic) {
@@ -143,8 +154,22 @@ struct HomeTabView: View {
 
 	// MARK: - Import CSV
 
-	private func importCSV(from url: URL) {
-		let count = accountsManager.importCSV(from: url)
+	/// Étape 1 — lecture : on lit le fichier choisi SANS rien enregistrer. Si des
+	/// transactions sont trouvées, on demande confirmation ; sinon on signale l'erreur.
+	private func handlePickedCSV(from url: URL) {
+		let parsed = accountsManager.parseCSVForImport(from: url)
+		if parsed.isEmpty {
+			showImportErrorAlert = true
+		} else {
+			pendingImport = parsed
+			showImportConfirmation = true
+		}
+	}
+
+	/// Étape 2 — enregistrement : l'utilisateur a confirmé, on écrit réellement.
+	private func confirmImport() {
+		let count = accountsManager.commitImportedTransactions(pendingImport)
+		pendingImport = []
 		importedCount = count
 		if count > 0 {
 			showImportSuccessAlert = true

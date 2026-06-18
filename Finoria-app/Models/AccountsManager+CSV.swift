@@ -36,9 +36,23 @@ extension AccountsManager {
 		return (rows, account.name)
 	}
 
-	func importCSV(from url: URL) -> Int {
-		guard let account = selectedAccount else { return 0 }
-		let imported = CSVService.importCSV(from: url)
+	/// Lit un fichier CSV et renvoie les transactions correspondantes,
+	/// **sans rien enregistrer** (ni dans le store, ni dans iCloud).
+	///
+	/// On sépare la lecture de l'enregistrement pour pouvoir afficher à l'utilisateur
+	/// le nombre de transactions trouvées et lui demander confirmation avant d'écrire
+	/// (voir `HomeTabView`). L'enregistrement réel se fait ensuite via
+	/// `commitImportedTransactions(_:)`.
+	func parseCSVForImport(from url: URL) -> [Transaction] {
+		CSVService.importCSV(from: url)
+	}
+
+	/// Enregistre dans le compte sélectionné des transactions déjà lues par
+	/// `parseCSVForImport(from:)`, en résolvant/créant au passage leurs catégories
+	/// personnalisées, puis persiste.
+	/// - Returns: Le nombre de transactions effectivement ajoutées.
+	func commitImportedTransactions(_ imported: [Transaction]) -> Int {
+		guard let account = selectedAccount, !imported.isEmpty else { return 0 }
 
 		// Index des catégories personnalisées du compte par nom normalisé.
 		// Permet de retrouver une catégorie existante — ou créée pendant cet
@@ -67,7 +81,7 @@ extension AccountsManager {
 			tx.account = account
 			modelContext.insert(tx)
 		}
-		if !imported.isEmpty { persist() }
+		persist()
 		return imported.count
 	}
 

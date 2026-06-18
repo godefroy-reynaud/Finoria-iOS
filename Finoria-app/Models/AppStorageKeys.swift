@@ -18,4 +18,9 @@ enum AppStorageKeys {
 
 	/// L'utilisateur a vu l'écran de bienvenue au premier lancement
 	static let hasSeenWelcome = "hasSeenWelcome"
+
+	/// L'utilisateur a coché « Ne plus afficher » sur l'alerte d'avertissement iCloud.
+	// WHY: tant que c'est false, l'alerte revient à chaque lancement si la synchro ne
+	// marche pas ; passe à true uniquement via le bouton « Ne plus afficher ».
+	static let hasSeenICloudWarning = "hasSeenICloudWarning"
 }

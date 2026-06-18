@@ -31,6 +31,9 @@ struct ContentView: View {
 	@State private var showCloudKitAlert = false
 	@State private var cloudKitAlertTitle = ""
 	@State private var cloudKitAlertMessage = ""
+	// WHY: passe à true seulement si l'utilisateur tape « Ne plus afficher » dans
+	// l'alerte iCloud — sinon l'alerte revient à chaque lancement (voir checkCloudKit).
+	@AppStorage(AppStorageKeys.hasSeenICloudWarning) private var hasSeenICloudWarning = false
 	
 	enum TabItem: Hashable {
 		case home, analyses, calendrier, futur, add
@@ -119,6 +122,7 @@ struct ContentView: View {
 		}
 		.alert(cloudKitAlertTitle, isPresented: $showCloudKitAlert) {
 			Button("OK", role: .cancel) { }
+			Button("Ne plus afficher") { hasSeenICloudWarning = true }
 		} message: {
 			Text(cloudKitAlertMessage)
 		}
@@ -132,7 +136,11 @@ struct ContentView: View {
 	// MARK: - CloudKit Check
 	
 	/// Vérifie que CloudKit est fonctionnel et affiche une alerte si ce n'est pas le cas.
+	// WHY: l'alerte s'affiche à CHAQUE lancement tant que la synchro ne marche pas,
+	// mais l'utilisateur peut choisir « Ne plus afficher » (bouton dans l'alerte) pour
+	// ne plus jamais la revoir. `hasSeenICloudWarning` n'est posé QUE par ce bouton.
 	private func checkCloudKit() {
+		guard !hasSeenICloudWarning else { return }
 		Task {
 			let status = await CloudKitService.checkAccountStatus()
 			if !status.isAvailable {
