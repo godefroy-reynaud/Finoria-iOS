@@ -65,6 +65,7 @@
 		F88E8D0A2FE0A03D00AAFD90 /* TransactionGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */; };
 		F88E8D0C2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */; };
 		F88E8D0E2FE46B4D00AAFD90 /* FinoriaSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0D2FE46B4D00AAFD90 /* FinoriaSchema.swift */; };
+		F88E8D102FE4806100AAFD90 /* SchemaMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0F2FE4806100AAFD90 /* SchemaMigrationTests.swift */; };
 		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8ACBAA12F5A1C560074CE1B /* SwiftDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */; };
@@ -163,6 +164,7 @@
 		F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionGrouping.swift; sourceTree = "<group>"; };
 		F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DayGroupedTransactionSections.swift; sourceTree = "<group>"; };
 		F88E8D0D2FE46B4D00AAFD90 /* FinoriaSchema.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FinoriaSchema.swift; sourceTree = "<group>"; };
+		F88E8D0F2FE4806100AAFD90 /* SchemaMigrationTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SchemaMigrationTests.swift; sourceTree = "<group>"; };
 		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftDataService.swift; sourceTree = "<group>"; };
@@ -441,6 +443,7 @@
 		F8B79A7E2CAEC5EE002D88AE /* Finoria-appTests */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D0F2FE4806100AAFD90 /* SchemaMigrationTests.swift */,
 				F8B79A7F2CAEC5EE002D88AE /* Finoria_appTests.swift */,
 			);
 			path = "Finoria-appTests";
@@ -670,6 +673,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F8B79A802CAEC5EE002D88AE /* Finoria_appTests.swift in Sources */,
+				F88E8D102FE4806100AAFD90 /* SchemaMigrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
