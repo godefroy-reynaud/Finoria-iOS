@@ -31,10 +31,8 @@ final class SchemaMigrationTests: XCTestCase {
 	/// ne perdront rien en installant le build qui introduit le schéma versionné.
 	@MainActor
 	func testCurrentSchema_roundTripsAllModelsWithoutLoss() throws {
-		// Dossier temporaire DÉDIÉ : il contient le store ET ses fichiers annexes
-		// (-wal, -shm). On supprime TOUT le dossier à la fin (pas seulement le .store) —
-		// c'est ce nettoyage partiel de l'ancienne version qui faisait échouer le test
-		// avec « Impossible de supprimer … » (les fichiers -wal/-shm restaient).
+		// Store dans un dossier temporaire DÉDIÉ (il contient le .store et ses fichiers
+		// annexes -wal/-shm), supprimé EN ENTIER à la fin pour ne rien laisser traîner.
 		let storeDir = URL.temporaryDirectory
 			.appending(path: "finoria-roundtrip-\(UUID().uuidString)", directoryHint: .isDirectory)
 		try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
@@ -43,21 +41,12 @@ final class SchemaMigrationTests: XCTestCase {
 
 		let accountID = UUID()
 
-		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations),
-		//    EXACTEMENT comme l'app en production : conteneur créé AVEC le plan de
-		//    migration. `SwiftDataService.makeContainer()` le passe TOUJOURS, même à
-		//    la toute première création du store — le test doit faire pareil pour
-		//    refléter le vrai comportement (et éviter une réouverture qui croit devoir
-		//    « migrer » un store non versionné). Le `do {}` libère ce premier conteneur
-		//    (fermeture du store) avant la réouverture de l'étape 2.
+		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations) avec le
+		//    schéma courant, puis fermer le store (fin du `do {}`) — il reste sur disque.
 		do {
 			let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
 			let config = ModelConfiguration(schema: schema, url: url)
-			let container = try ModelContainer(
-				for: schema,
-				migrationPlan: FinoriaMigrationPlan.self,
-				configurations: config
-			)
+			let container = try ModelContainer(for: schema, configurations: config)
 			let ctx = container.mainContext
 
 			let account = Account(id: accountID, name: "Compte test", detail: "détail")
@@ -83,14 +72,15 @@ final class SchemaMigrationTests: XCTestCase {
 			try ctx.save()
 		} // ← le 1er conteneur est libéré ici : la base reste sur disque
 
-		// 2. ROUVRIR la base (= ce que fait l'app au lancement après mise à jour)
+		// 2. ROUVRIR la base avec le schéma courant (= ce que fait l'app au lancement).
+		//    On ne passe PAS le plan de migration ici : il n'a qu'une version (V1, aucune
+		//    étape), donc il ne migrerait rien — et déclencher une migration « à vide »
+		//    sur un store à URL personnalisée fait planter SwiftData (il tente de
+		//    supprimer un fichier de sauvegarde jamais créé). Le plan AVEC une vraie
+		//    étape de migration est, lui, couvert par le test 2 ci-dessous.
 		let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
 		let config = ModelConfiguration(schema: schema, url: url)
-		let container = try ModelContainer(
-			for: schema,
-			migrationPlan: FinoriaMigrationPlan.self,
-			configurations: config
-		)
+		let container = try ModelContainer(for: schema, configurations: config)
 		let ctx = container.mainContext
 
 		// 3. VÉRIFIER que rien n'a disparu
