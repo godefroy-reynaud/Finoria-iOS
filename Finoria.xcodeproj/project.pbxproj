@@ -64,6 +64,7 @@
 		F88E8D082FE09C6B00AAFD90 /* TransactionCategoryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */; };
 		F88E8D0A2FE0A03D00AAFD90 /* TransactionGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */; };
 		F88E8D0C2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */; };
+		F88E8D0E2FE46B4D00AAFD90 /* FinoriaSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88E8D0D2FE46B4D00AAFD90 /* FinoriaSchema.swift */; };
 		F8AA01022F69AA0100AA0102 /* AppStorageKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */; };
 		F8AA01042F69AA0100AA0104 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */; };
 		F8ACBAA12F5A1C560074CE1B /* SwiftDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */; };
@@ -161,6 +162,7 @@
 		F88E8D052FE09C6B00AAFD90 /* TransactionCategoryPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionCategoryPicker.swift; sourceTree = "<group>"; };
 		F88E8D092FE0A03D00AAFD90 /* TransactionGrouping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransactionGrouping.swift; sourceTree = "<group>"; };
 		F88E8D0B2FE0A04A00AAFD90 /* DayGroupedTransactionSections.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DayGroupedTransactionSections.swift; sourceTree = "<group>"; };
+		F88E8D0D2FE46B4D00AAFD90 /* FinoriaSchema.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FinoriaSchema.swift; sourceTree = "<group>"; };
 		F8AA01012F69AA0100AA0101 /* AppStorageKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorageKeys.swift; sourceTree = "<group>"; };
 		F8AA01032F69AA0100AA0103 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F8ACBAA02F5A1C550074CE1B /* SwiftDataService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftDataService.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 		F810E3042E43EA7B00C2DFA9 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F88E8D0D2FE46B4D00AAFD90 /* FinoriaSchema.swift */,
 				F88E8CF92FE0955700AAFD90 /* AccountsManager+Accounts.swift */,
 				F88E8CF82FE0955700AAFD90 /* AccountsManager+Calculations.swift */,
 				F88E8CF42FE0955600AAFD90 /* AccountsManager+CSV.swift */,
@@ -604,6 +607,7 @@
 				F810E30E2E45331900C2DFA9 /* HomeView.swift in Sources */,
 				F800A3F32E4F6D3400918507 /* ToastView.swift in Sources */,
 				F8388E972F356BB10081F2F9 /* TransactionRow.swift in Sources */,
+				F88E8D0E2FE46B4D00AAFD90 /* FinoriaSchema.swift in Sources */,
 				F8388EA82F3DE67B0081F2F9 /* AnalysesView.swift in Sources */,
 				F807613E2CC6E31C00C34EDD /* Notifications.swift in Sources */,
 				F800A3F12E4F6D1E00918507 /* ToastData.swift in Sources */,
