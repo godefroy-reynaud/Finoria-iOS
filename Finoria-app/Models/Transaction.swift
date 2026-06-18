@@ -31,6 +31,10 @@ enum TransactionType: String, CaseIterable, Codable, Identifiable {
 /// **Validée** (`potentiel = false`) : confirmée, avec date.
 ///
 /// Modifications via `validate(at:)` ou `modify(...)` (mutation en place, trackée par SwiftData).
+///
+/// ⚠️ ZÉRO PERTE DE DONNÉES : avant de modifier les propriétés/relations de ce modèle,
+/// lisez la procédure de migration dans `FinoriaSchema.swift` (versionner le schéma +
+/// ajouter une MigrationStage). Ne jamais renommer/supprimer un champ sans migration.
 @Model
 final class Transaction {
 	

@@ -44,6 +44,10 @@ enum RecurrenceFrequency: String, Codable, CaseIterable, Identifiable {
 ///
 /// Génère automatiquement des `Transaction` potentielles pour le mois à venir.
 /// Les transactions passées sont auto-validées par le `RecurrenceEngine`.
+///
+/// ⚠️ ZÉRO PERTE DE DONNÉES : avant de modifier les propriétés/relations de ce modèle,
+/// lisez la procédure de migration dans `FinoriaSchema.swift` (versionner le schéma +
+/// ajouter une MigrationStage). Ne jamais renommer/supprimer un champ sans migration.
 @Model
 final class RecurringTransaction {
 	

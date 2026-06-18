@@ -72,6 +72,26 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 ## Models/
 
 ---
+**`Finoria-app/Models/FinoriaSchema.swift`**
+
+**Purpose:** ⚠️ Versioned-schema + migration infrastructure — the single control point for evolving the data structure **without losing any user data** (on device or in iCloud).
+
+**Type:** `enum FinoriaSchemaV1: VersionedSchema`, `enum FinoriaMigrationPlan: SchemaMigrationPlan`, and `typealias FinoriaCurrentSchema = FinoriaSchemaV1`.
+
+**Dependencies:** SwiftData; the five @Model types (referenced, not redefined).
+
+**Members:**
+| Name | Kind | Description |
+|------|------|-------------|
+| FinoriaSchemaV1.versionIdentifier | static Schema.Version | `1.0.0` — frozen snapshot identifier of the currently shipped structure |
+| FinoriaSchemaV1.models | static [any PersistentModel.Type] | The five models composing version 1 |
+| FinoriaMigrationPlan.schemas | static [any VersionedSchema.Type] | Ordered list of all schema versions (only V1 today) |
+| FinoriaMigrationPlan.stages | static [MigrationStage] | Migration steps between successive versions (empty today) |
+| FinoriaCurrentSchema | typealias | Always points to the latest version; the one line to flip when adding V2 |
+
+**Notes:** Consumed by `SwiftDataService`, which builds every `ModelContainer` from `FinoriaCurrentSchema` + `FinoriaMigrationPlan`. The file header documents the full migration procedure (additive = `.lightweight`, complex = `.custom` with `willMigrate`/`didMigrate`), the CloudKit additive-only constraint, and a copy-paste V2 template. **Golden rule: never edit a shipped `FinoriaSchemaVx`; add a new version + stage instead.** Each `@Model` carries a one-line reminder pointing here.
+
+---
 **`Finoria-app/Models/Account.swift`**
 
 **Purpose:** Root SwiftData entity for a financial account, plus its visual style enum.
@@ -332,16 +352,17 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 **Properties:**
 | Name | Type | Description |
 |------|------|-------------|
-| models | static [any PersistentModel.Type] | Schema list: Account, Transaction, WidgetShortcut, RecurringTransaction, CustomTransactionCategory |
+| models | static [any PersistentModel.Type] | Delegates to `FinoriaCurrentSchema.models` (single source of truth) |
+| currentSchema (private) | static Schema | `Schema(versionedSchema: FinoriaCurrentSchema.self)` — shared by all three factories so the version (and migration plan) always applies |
 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| makeContainer | — | throws ModelContainer | On-disk, `cloudKitDatabase: .automatic` — production path |
-| makeFallbackContainer | — | throws ModelContainer | On-disk, `cloudKitDatabase: .none` — data preserved, no sync |
-| makePreviewContainer | — | throws ModelContainer | In-memory, no CloudKit — previews/tests |
+| makeContainer | — | throws ModelContainer | On-disk, `cloudKitDatabase: .automatic`, **`migrationPlan: FinoriaMigrationPlan`** — production path |
+| makeFallbackContainer | — | throws ModelContainer | On-disk, `cloudKitDatabase: .none`, same migration plan — data preserved, no sync |
+| makePreviewContainer | — | throws ModelContainer | In-memory, no CloudKit, same migration plan — previews/tests |
 
-**Notes:** CloudKit prerequisites documented in the header (iCloud + Push + Background Modes capabilities; no `@Attribute(.unique)` anywhere).
+**Notes:** Every container is built from the versioned schema + `FinoriaMigrationPlan` ([`FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift)) — this is what guarantees zero data loss across structural changes. CloudKit prerequisites documented in the header (iCloud + Push + Background Modes capabilities; no `@Attribute(.unique)` anywhere).
 
 ---
 **`Finoria-app/Services/CalculationService.swift`**
@@ -1246,3 +1267,13 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | Analyses selection (type, slice, month/year) | AnalysesView | `@State` | Session, view-local |
 | Calendar mode (Jour/Mois/Année) | CalendrierTabView | `@State CalendrierViewMode` | Session, view-local |
 | Form drafts & sheet/alert toggles | Each editor view | `@State` | Transient, view-local |
+
+**Data Persistence & Schema Migration (zero data loss):**
+
+Persistence is versioned end-to-end so the data structure can evolve across app updates without ever losing user data (on device or in iCloud).
+
+- **Source of truth:** [`FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift) — `FinoriaSchemaV1` (frozen snapshot of the shipped models), `FinoriaMigrationPlan` (versions + migration stages), and the `FinoriaCurrentSchema` alias.
+- **Wiring:** `SwiftDataService` builds **all three** containers (production CloudKit, on-disk fallback, in-memory preview) from `Schema(versionedSchema: FinoriaCurrentSchema.self)` and passes `migrationPlan: FinoriaMigrationPlan.self`. The migration plan therefore runs identically in every mode.
+- **Golden rule:** never modify a `FinoriaSchemaVx` already shipped. To change the structure: create `FinoriaSchemaV2`, add a `MigrationStage` (`.lightweight` for additive changes, `.custom` with `willMigrate`/`didMigrate` for renames/transforms), register both in `FinoriaMigrationPlan`, then point `FinoriaCurrentSchema` at V2.
+- **CloudKit constraint:** schema changes must be additive (new properties with defaults, new models, optional relationships). Never delete/rename server-side fields; to "rename", add the new field, migrate the data, keep the old one.
+- **Guardrails:** every `@Model` carries a one-line reminder pointing to `FinoriaSchema.swift`; the file header holds the full procedure + a copy-paste V2 template. Migrations must be tested against an old-version store before publishing.

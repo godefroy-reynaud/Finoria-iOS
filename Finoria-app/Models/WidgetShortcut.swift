@@ -12,6 +12,10 @@ import SwiftUI
 // MARK: - Modèle WidgetShortcut (SwiftData)
 
 /// Modèle persistant représentant un raccourci rapide pour ajouter une transaction en un tap.
+///
+/// ⚠️ ZÉRO PERTE DE DONNÉES : avant de modifier les propriétés/relations de ce modèle,
+/// lisez la procédure de migration dans `FinoriaSchema.swift` (versionner le schéma +
+/// ajouter une MigrationStage). Ne jamais renommer/supprimer un champ sans migration.
 @Model
 final class WidgetShortcut {
 	

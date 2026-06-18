@@ -10,6 +10,10 @@ import SwiftData
 import SwiftUI
 
 /// Catégorie personnalisée créée localement pour un compte.
+///
+/// ⚠️ ZÉRO PERTE DE DONNÉES : avant de modifier les propriétés/relations de ce modèle,
+/// lisez la procédure de migration dans `FinoriaSchema.swift` (versionner le schéma +
+/// ajouter une MigrationStage). Ne jamais renommer/supprimer un champ sans migration.
 @Model
 final class CustomTransactionCategory {
 	var id: UUID = UUID()

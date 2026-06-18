@@ -108,6 +108,10 @@ enum AccountStyle: String, Codable, CaseIterable, Identifiable, StylableEnum {
 /// - `recurringTransactions` : les transactions récurrentes
 ///
 /// La suppression d'un compte entraîne la suppression en cascade de toutes ses données liées.
+///
+/// ⚠️ ZÉRO PERTE DE DONNÉES : avant de modifier les propriétés/relations de ce modèle,
+/// lisez la procédure de migration dans `FinoriaSchema.swift` (versionner le schéma +
+/// ajouter une MigrationStage). Ne jamais renommer/supprimer un champ sans migration.
 @Model
 final class Account {
 	

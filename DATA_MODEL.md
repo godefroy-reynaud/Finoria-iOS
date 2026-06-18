@@ -83,3 +83,31 @@ erDiagram
 |---|---|---|
 | Comptes, transactions, raccourcis, récurrences, catégories | SQLite via SwiftData | CloudKit (iCloud) automatique |
 | Compte sélectionné | `UserDefaults` | Non synchronisé — préférence locale |
+
+## Versionnage du schéma & migration (zéro perte de données)
+
+Le schéma est **versionné** pour pouvoir faire évoluer la structure des données lors
+d'une mise à jour **sans jamais perdre une donnée utilisateur** (ni sur l'appareil, ni
+dans iCloud). Tout est centralisé dans
+[`Finoria-app/Models/FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift) :
+
+| Élément | Rôle |
+|---|---|
+| `FinoriaSchemaV1` | Instantané figé de la structure actuelle (version `1.0.0`). **Ne jamais le modifier une fois publié.** |
+| `FinoriaMigrationPlan` | Liste ordonnée des versions + étapes de migration entre elles |
+| `FinoriaCurrentSchema` | Alias vers la dernière version ; lu par `SwiftDataService` pour construire le `ModelContainer` (la seule ligne à changer pour activer une nouvelle version) |
+
+**Procédure pour changer la structure (résumé) :**
+
+1. Ne pas toucher au `FinoriaSchemaVx` déjà publié.
+2. Créer `FinoriaSchemaV2` (copie de V1 + le changement).
+3. Ajouter l'étape de migration dans `FinoriaMigrationPlan.stages` :
+   - **Additif** (nouvelle propriété avec valeur par défaut, nouveau `@Model`, relation optionnelle) → `.lightweight(fromVersion:toVersion:)` (automatique, compatible CloudKit).
+   - **Complexe** (renommage, fusion, transformation) → `.custom(...)` avec `willMigrate`/`didMigrate` qui recopie l'ancienne donnée vers la nouvelle **avant** disparition de l'ancienne.
+4. Faire pointer `FinoriaCurrentSchema` vers la nouvelle version.
+5. Tester la migration sur un appareil contenant des données de l'ancienne version **avant** publication.
+
+> ⚠️ **CloudKit n'accepte que les évolutions additives** : on ne supprime/renomme jamais
+> un champ côté serveur. Pour « renommer », on ajoute le nouveau champ, on migre la donnée
+> et on garde l'ancien (déprécié). La procédure complète et un modèle de V2 prêt à copier
+> figurent dans l'en-tête de `FinoriaSchema.swift`.
