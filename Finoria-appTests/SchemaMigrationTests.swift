@@ -37,14 +37,14 @@ final class SchemaMigrationTests: XCTestCase {
 		let accountID = UUID()
 
 		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations)
+		//    Pas de migrationPlan ici : on crée un store NEUF (= "données déjà
+		//    présentes d'une version précédente"). Le plan ne sert qu'à la
+		//    RÉOUVERTURE (étape 2) — le passer à la création d'un store vide met
+		//    SwiftData dans un état de fichiers incohérent.
 		do {
 			let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
 			let config = ModelConfiguration(schema: schema, url: url)
-			let container = try ModelContainer(
-				for: schema,
-				migrationPlan: FinoriaMigrationPlan.self,
-				configurations: config
-			)
+			let container = try ModelContainer(for: schema, configurations: config)
 			let ctx = container.mainContext
 
 			let account = Account(id: accountID, name: "Compte test", detail: "détail")
