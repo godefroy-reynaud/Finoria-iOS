@@ -23,21 +23,18 @@ final class SchemaMigrationTests: XCTestCase {
 
 	// MARK: - Test 1 — La structure ACTUELLE conserve toutes les données (round-trip)
 
-	/// Écrit un jeu de données complet sur disque avec le conteneur de production
-	/// (schéma versionné + plan de migration), puis ROUVRE la base comme le ferait
-	/// une mise à jour de l'app — et vérifie que TOUT est encore là.
+	/// Écrit un jeu de données complet sur disque avec le schéma versionné courant,
+	/// puis ROUVRE la base (comme un relancement de l'app) et vérifie que TOUT est
+	/// encore là — comptes, transactions, relations comprises.
 	///
-	/// C'est la preuve, exécutable dès aujourd'hui, que tes utilisateurs actuels
-	/// ne perdront rien en installant le build qui introduit le schéma versionné.
+	/// C'est la preuve, exécutable dès aujourd'hui, que la persistance fonctionne et
+	/// que tes utilisateurs actuels ne perdront rien en passant au schéma versionné.
+	/// (Le mécanisme de MIGRATION lui-même est prouvé par le test 2.)
 	@MainActor
 	func testCurrentSchema_roundTripsAllModelsWithoutLoss() throws {
-		// Store dans un dossier temporaire DÉDIÉ (il contient le .store et ses fichiers
-		// annexes -wal/-shm), supprimé EN ENTIER à la fin pour ne rien laisser traîner.
-		let storeDir = URL.temporaryDirectory
-			.appending(path: "finoria-roundtrip-\(UUID().uuidString)", directoryHint: .isDirectory)
-		try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
-		defer { try? FileManager.default.removeItem(at: storeDir) }
-		let url = storeDir.appending(path: "Finoria.store")
+		// Fichier de base temporaire (même schéma d'URL que le test 2 qui passe).
+		let url = URL.temporaryDirectory.appending(path: "finoria-roundtrip-\(UUID().uuidString).store")
+		defer { try? FileManager.default.removeItem(at: url) }
 
 		let accountID = UUID()
 
@@ -72,12 +69,10 @@ final class SchemaMigrationTests: XCTestCase {
 			try ctx.save()
 		} // ← le 1er conteneur est libéré ici : la base reste sur disque
 
-		// 2. ROUVRIR la base avec le schéma courant (= ce que fait l'app au lancement).
-		//    On ne passe PAS le plan de migration ici : il n'a qu'une version (V1, aucune
-		//    étape), donc il ne migrerait rien — et déclencher une migration « à vide »
-		//    sur un store à URL personnalisée fait planter SwiftData (il tente de
-		//    supprimer un fichier de sauvegarde jamais créé). Le plan AVEC une vraie
-		//    étape de migration est, lui, couvert par le test 2 ci-dessous.
+		// 2. ROUVRIR la base avec le schéma courant (= ce que fait l'app au relancement).
+		//    Avec une seule version (V1), le plan de migration est un no-op : on ne le
+		//    passe donc pas ici. La migration RÉELLE (avec une étape V1→V2) est couverte
+		//    par le test 2 ci-dessous.
 		let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
 		let config = ModelConfiguration(schema: schema, url: url)
 		let container = try ModelContainer(for: schema, configurations: config)
