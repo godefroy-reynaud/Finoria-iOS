@@ -57,18 +57,17 @@ erDiagram
     Account ||--o{ CustomTransactionCategory : "1 → 0..* · customTransactionCategories · cascade"
 
     Transaction }o--o| CustomTransactionCategory          : "0..* → 0..1 · customCategory · nullify"
-    WidgetShortcut }o--o| CustomTransactionCategory       : "0..* → 0..1 · customCategory · nullify*"
-    RecurringTransaction }o--o| CustomTransactionCategory : "0..* → 0..1 · customCategory · nullify*"
+    WidgetShortcut }o--o| CustomTransactionCategory       : "0..* → 0..1 · customCategory · nullify"
+    RecurringTransaction }o--o| CustomTransactionCategory : "0..* → 0..1 · customCategory · nullify"
     Transaction }o--o| RecurringTransaction               : "0..* → 0..1 · sourceRecurringTransaction · nullify"
 ```
 
-> **\* Inverse synthétisé** — `Transaction.customCategory` a un inverse explicite
-> (`CustomTransactionCategory.transactions`), mais `WidgetShortcut.customCategory` et
-> `RecurringTransaction.customCategory` n'en déclarent pas : SwiftData en synthétise un
-> automatiquement (règle par défaut `nullify` pour une relation to-one optionnelle).
-> Le comportement est correct, mais pour le rendre explicite et robuste on peut ajouter
-> les collections inverses `widgetShortcuts` / `recurringTransactions` sur
-> `CustomTransactionCategory` (voir la note d'évolution en bas de page).
+> **Inverses explicites** — `CustomTransactionCategory` déclare ses trois collections
+> inverses (`transactions`, `widgetShortcuts`, `recurringTransactions`), toutes en
+> `deleteRule: .nullify`. Supprimer une catégorie perso met donc `customCategory = nil`
+> sur les transactions, raccourcis et récurrences qui la référençaient, de façon
+> **garantie** (plus aucun inverse synthétisé implicitement). Ce passage aux inverses
+> explicites est l'objet du schéma **V2** (voir ci-dessous).
 
 > **Cardinalités** — Mermaid impose la notation « patte d'oie » sur le trait
 > (`||` = exactement 1, `o{` = 0..*, `o|` = 0..1). Les multiplicités numériques
@@ -85,7 +84,7 @@ erDiagram
 | `Account → RecurringTransaction` | cascade | Supprimer un compte supprime toutes ses récurrences |
 | `Account → CustomTransactionCategory` | cascade | Supprimer un compte supprime toutes ses catégories perso |
 | `CustomTransactionCategory → Transaction` | nullify | Supprimer une catégorie met `customCategory = nil` sur les transactions (elles sont conservées) |
-| `CustomTransactionCategory → WidgetShortcut` / `RecurringTransaction` | nullify (synthétisé) | Idem pour les raccourcis et récurrences qui pointaient sur la catégorie |
+| `CustomTransactionCategory → WidgetShortcut` / `RecurringTransaction` | nullify (inverse explicite) | Idem pour les raccourcis et récurrences qui pointaient sur la catégorie |
 | `RecurringTransaction → Transaction` | nullify | Supprimer une récurrence conserve les transactions déjà générées (historique) |
 
 ## Stockage
@@ -104,9 +103,14 @@ dans iCloud). Tout est centralisé dans
 
 | Élément | Rôle |
 |---|---|
-| `FinoriaSchemaV1` | Instantané figé de la structure actuelle (version `1.0.0`). **Ne jamais le modifier une fois publié.** |
-| `FinoriaMigrationPlan` | Liste ordonnée des versions + étapes de migration entre elles |
-| `FinoriaCurrentSchema` | Alias vers la dernière version ; lu par `SwiftDataService` pour construire le `ModelContainer` (la seule ligne à changer pour activer une nouvelle version) |
+| `FinoriaSchemaV1` | Instantané figé de la première structure (version `1.0.0`). **Ne jamais le modifier.** |
+| `FinoriaSchemaV2` | Structure **courante** (version `2.0.0`) : inverses `customCategory` explicites. Migration `V1 → V2` = `.lightweight` (additive). **Ne jamais la modifier une fois publiée.** |
+| `FinoriaMigrationPlan` | Liste ordonnée des versions (`V1`, `V2`) + étapes de migration entre elles |
+| `FinoriaCurrentSchema` | Alias vers la dernière version (`V2`) ; lu par `SwiftDataService` pour construire le `ModelContainer` (la seule ligne à changer pour activer une nouvelle version) |
+
+> 💡 La V2 sert aussi de **test grandeur nature** de la mécanique de migration : un
+> appareil ayant des données créées en V1 doit les conserver à 100 % après installation
+> de la version V2. C'est le bon moment pour valider ce filet de sécurité, avant publication.
 
 **Procédure pour changer la structure (résumé) :**
 
@@ -143,10 +147,9 @@ le plan de migration et peuvent corrompre des données déjà publiées s'ils so
    sont rattachées. Le nom interne historique (`GDF-app`) est sans importance, ne pas
    chercher à le « nettoyer ».
 
-3. **Inverses de relation explicites (robustesse)** — `WidgetShortcut.customCategory` et
-   `RecurringTransaction.customCategory` reposent sur un inverse synthétisé par SwiftData.
-   C'est fonctionnel, mais déclarer les collections inverses explicites sur
-   `CustomTransactionCategory` (`widgetShortcuts`, `recurringTransactions` avec
-   `deleteRule: .nullify`) rendrait le comportement de suppression **garanti et lisible**.
-   Si c'est fait, ce sera un changement de structure → versionner le schéma (migration
-   additive `.lightweight`).
+3. **Inverses de relation explicites (robustesse)** — ✅ Fait en V2 :
+   `CustomTransactionCategory` déclare désormais explicitement `widgetShortcuts` et
+   `recurringTransactions` (`deleteRule: .nullify`), au lieu de s'appuyer sur l'inverse
+   synthétisé par SwiftData. Le comportement de suppression est garanti et lisible. À
+   garder comme exemple de référence pour toute future relation : **toujours déclarer
+   l'inverse explicitement.**

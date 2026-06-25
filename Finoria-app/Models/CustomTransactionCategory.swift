@@ -28,6 +28,22 @@ final class CustomTransactionCategory {
 	@Relationship(deleteRule: .nullify, inverse: \Transaction.customCategory)
 	var transactions: [Transaction] = []
 
+	// WHY (inverses explicites) : `WidgetShortcut.customCategory` et
+	// `RecurringTransaction.customCategory` reposaient sur un inverse synthétisé
+	// implicitement par SwiftData. On le déclare désormais explicitement pour que
+	// le comportement de suppression (nullify) soit garanti et lisible : supprimer
+	// une catégorie perso met `customCategory = nil` sur les raccourcis/récurrences
+	// qui la référençaient, au lieu de laisser une référence dépendant de l'inférence.
+	// ⚠️ Changement de structure → schéma versionné V2 (voir FinoriaSchema.swift).
+
+	/// Raccourcis utilisant cette catégorie personnalisée.
+	@Relationship(deleteRule: .nullify, inverse: \WidgetShortcut.customCategory)
+	var widgetShortcuts: [WidgetShortcut] = []
+
+	/// Récurrences utilisant cette catégorie personnalisée.
+	@Relationship(deleteRule: .nullify, inverse: \RecurringTransaction.customCategory)
+	var recurringTransactions: [RecurringTransaction] = []
+
 	init(
 		id: UUID = UUID(),
 		name: String,

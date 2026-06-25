@@ -64,7 +64,7 @@ Finoria-iOS/
     ├── Localizable.strings               # Localization file (empty since remote announcements were removed)
     ├── LaunchScreen.storyboard           # Launch screen
     ├── Models/
-    │   ├── FinoriaSchema.swift           # ⚠️ Versioned schema (FinoriaSchemaV1) + migration plan — change here to evolve structure w/o data loss
+    │   ├── FinoriaSchema.swift           # ⚠️ Versioned schema (V1→V2) + migration plan — change here to evolve structure w/o data loss
     │   ├── Account.swift                 # @Model account + AccountStyle enum (10 styles, name guessing)
     │   ├── Transaction.swift             # @Model transaction + TransactionType enum (+/−)
     │   ├── RecurringTransaction.swift    # @Model recurrence + RecurrenceFrequency + anchor-based occurrence math
@@ -119,7 +119,7 @@ Finoria-iOS/
 
 ## Data Model
 
-All five persisted types are SwiftData `@Model` classes. For CloudKit compatibility, every property has a default value, none is marked unique, and to-one relationships are optional on the child side. The schema is **versioned** (`FinoriaSchemaV1`) and the container is opened with a **migration plan** (`FinoriaMigrationPlan`) so that any future structural change migrates existing data instead of discarding it — see *Schema evolution* below.
+All five persisted types are SwiftData `@Model` classes. For CloudKit compatibility, every property has a default value, none is marked unique, and to-one relationships are optional on the child side. The schema is **versioned** (current: `FinoriaSchemaV2`) and the container is opened with a **migration plan** (`FinoriaMigrationPlan`) so that any future structural change migrates existing data instead of discarding it — see *Schema evolution* below.
 
 **Account** is the root entity: an id (UUID), a name (15 chars max), an optional detail line (20 chars max), and a visual style — one of ten `AccountStyle` cases pairing an SF Symbol with a color, guessable from the account name. It owns four cascade-deleting to-many relationships: its transactions, its widget shortcuts, its recurring transactions, and its custom categories. Deleting an account removes everything it contains.
 
@@ -143,13 +143,14 @@ All five persisted types are SwiftData `@Model` classes. For CloudKit compatibil
 
 **Concurrency.** `AccountsManager` is `@MainActor @Observable`; all model reads/writes happen on the main actor (required by `ModelContainer.mainContext`). The one deliberately off-main code path is CSV export: `csvExportSnapshot()` snapshots transactions into `Sendable` `CSVService.ExportRow` values on the main actor, then the `Transferable` `FileRepresentation` closure builds and writes the file in the background — keeping share-sheet presentation freeze-free. The project compiles in **Swift 5 language mode**: the `@MainActor`/`Sendable` annotations are in place but not compiler-verified; enabling `SWIFT_STRICT_CONCURRENCY = complete` is the recommended next step before moving to Swift 6 mode.
 
-**Schema evolution (zero data loss).** The data structure can change in future updates **without ever losing user data** (on-device *or* in iCloud), because persistence is built on SwiftData's versioned-schema + migration-plan mechanism. The single source of truth is [`Finoria-app/Models/FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift): it defines `FinoriaSchemaV1` (a frozen snapshot of the current models), `FinoriaMigrationPlan` (the ordered list of versions and the migration stages between them), and the `FinoriaCurrentSchema` alias that `SwiftDataService` feeds into every `ModelContainer`. Rules when you change the structure:
+**Schema evolution (zero data loss).** The data structure can change in future updates **without ever losing user data** (on-device *or* in iCloud), because persistence is built on SwiftData's versioned-schema + migration-plan mechanism. The single source of truth is [`Finoria-app/Models/FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift): it defines `FinoriaSchemaV1` (the first frozen snapshot) and `FinoriaSchemaV2` (the **current** schema — it adds the explicit `customCategory` inverses on `CustomTransactionCategory`), `FinoriaMigrationPlan` (versions `[V1, V2]` plus the `.lightweight(V1 → V2)` stage), and the `FinoriaCurrentSchema = FinoriaSchemaV2` alias that `SwiftDataService` feeds into every `ModelContainer`. Rules when you change the structure:
 
 1. **Never edit a shipped `FinoriaSchemaVx`** — it describes the structure already installed on users' devices. Editing it makes their data unreadable.
-2. **Additive changes are easy and safe** — adding a property *with a default value*, a new `@Model`, or an *optional* relationship is CloudKit-compatible and migrates automatically. Create `FinoriaSchemaV2` (a copy of V1 with the change) and add a `.lightweight(fromVersion:toVersion:)` stage.
+2. **Additive changes are easy and safe** — adding a property *with a default value*, a new `@Model`, or an *optional* relationship is CloudKit-compatible and migrates automatically. Create the next version (`FinoriaSchemaV3`, a copy of V2 with the change) and add a `.lightweight(fromVersion:toVersion:)` stage (the `V1 → V2` step is a worked example of exactly this).
 3. **Complex changes (rename / merge / transform values)** need a `.custom(...)` stage whose `willMigrate` copies data from the old field to the new one *before* the old one disappears — no data is lost.
 4. **CloudKit only allows additive schema changes.** You cannot delete or rename a field server-side. To "rename", add the new field, migrate the data, and keep the old field (deprecated) rather than removing it.
 5. Point `FinoriaCurrentSchema` to the newest version (the only line to flip) and **test the migration on a device that already holds old-version data** before publishing.
+6. **Outside the migration plan:** never rename/remove a shipped enum `case` (its `rawValue` is persisted — add cases only), and never change the CloudKit container ID or bundle ID after release.
 
 The full step-by-step procedure and a ready-to-copy V2 template live in the header comment of `FinoriaSchema.swift`; each `@Model` also carries a one-line reminder pointing back to it.
 

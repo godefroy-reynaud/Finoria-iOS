@@ -98,7 +98,9 @@ package "Models (SwiftData)" #F4F8FB {
     + colorHex : String
     --
     + account : Account?
-    + transactions : [Transaction]            <<nullify>>
+    + transactions : [Transaction]                  <<nullify>>
+    + widgetShortcuts : [WidgetShortcut]             <<nullify>>
+    + recurringTransactions : [RecurringTransaction] <<nullify>>
     --
     + resolvedColor : Color
   }
@@ -344,8 +346,8 @@ Account "1" o-- "0..*" RecurringTransaction       : recurringTransactions\ncasca
 Account "1" o-- "0..*" CustomTransactionCategory  : customTransactionCategories\ncascade
 
 Transaction "0..*" --> "0..1" CustomTransactionCategory : customCategory\nnullify
-WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory
-RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory
+WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory\nnullify
+RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory\nnullify
 Transaction "0..*" --> "0..1" RecurringTransaction      : sourceRecurringTransaction\nnullify
 
 '====================================================================

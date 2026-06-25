@@ -91,12 +91,13 @@ import SwiftData
 //   migrations additives (A), gérées nativement et sans risque par SwiftData.
 //
 
-// MARK: - Schéma V1 (structure ACTUELLE — figée, ne pas modifier)
+// MARK: - Schéma V1 (première structure — figée, ne pas modifier)
 
 /// Version 1 du schéma de données Finoria.
 ///
-/// ⚠️ NE PAS MODIFIER cette version : elle décrit la structure déjà déployée
-/// chez les utilisateurs. Pour tout changement, créez `FinoriaSchemaV2`.
+/// ⚠️ NE PAS MODIFIER cette version : elle décrit la première structure du store.
+/// La structure COURANTE est `FinoriaSchemaV2` (voir plus bas). Pour tout nouveau
+/// changement, créez `FinoriaSchemaV3`.
 ///
 /// Les types `@Model` réels sont définis dans leurs fichiers respectifs
 /// (`Account.swift`, `Transaction.swift`, etc.). Cette énumération ne fait que
@@ -119,39 +120,68 @@ enum FinoriaSchemaV1: VersionedSchema {
 	}
 }
 
+// MARK: - Schéma V2 (structure ACTUELLE — figée, ne pas modifier)
+
+/// Version 2 du schéma de données Finoria.
+///
+/// CHANGEMENT par rapport à V1 — purement ADDITIF :
+/// `CustomTransactionCategory` déclare désormais EXPLICITEMENT ses relations
+/// inverses `widgetShortcuts` et `recurringTransactions` (auparavant synthétisées
+/// implicitement par SwiftData). Aucune propriété scalaire n'est ajoutée ni retirée,
+/// aucun lien existant n'est cassé → migration `.lightweight`, zéro perte de données.
+///
+/// ⚠️ NE PAS MODIFIER cette version une fois publiée : pour tout changement
+/// ultérieur, créez `FinoriaSchemaV3` + une nouvelle `MigrationStage`.
+enum FinoriaSchemaV2: VersionedSchema {
+
+	static var versionIdentifier = Schema.Version(2, 0, 0)
+
+	/// Même composition de modèles que V1 ; la différence est portée par la
+	/// définition à jour de `CustomTransactionCategory` (inverses explicites).
+	static var models: [any PersistentModel.Type] {
+		[
+			Account.self,
+			Transaction.self,
+			WidgetShortcut.self,
+			RecurringTransaction.self,
+			CustomTransactionCategory.self
+		]
+	}
+}
+
 // MARK: - Plan de migration (l'historique de toutes les versions)
 
 /// Décrit l'enchaînement des versions de schéma et la façon de passer de l'une
 /// à l'autre sans perte de données.
 ///
-/// Tant qu'il n'y a qu'une seule version, `stages` est vide : SwiftData ouvre
-/// le store tel quel. Dès qu'une `FinoriaSchemaV2` existe, ajoutez-la ici ainsi
-/// que l'étape `V1 → V2`.
+/// La première version publiée est `V1` ; la version courante est `V2` (ajout des
+/// inverses explicites de `customCategory`). L'étape `V1 → V2` est une migration
+/// légère (additive). Dès qu'une `FinoriaSchemaV3` existera, ajoutez-la ici ainsi
+/// que l'étape `V2 → V3`.
 enum FinoriaMigrationPlan: SchemaMigrationPlan {
 
 	/// Toutes les versions du schéma, de la plus ancienne à la plus récente.
 	/// AJOUTEZ ici chaque nouvelle version (ne retirez JAMAIS une version passée).
 	static var schemas: [any VersionedSchema.Type] {
 		[
-			FinoriaSchemaV1.self
-			// , FinoriaSchemaV2.self   ← à ajouter lors du prochain changement
+			FinoriaSchemaV1.self,
+			FinoriaSchemaV2.self
+			// , FinoriaSchemaV3.self   ← à ajouter lors du prochain changement
 		]
 	}
 
 	/// Les étapes de transformation entre versions successives.
-	/// Vide pour l'instant : une seule version existe, aucune migration requise.
 	static var stages: [MigrationStage] {
 		[
-			// Exemple à décommenter/adapter pour la V2 :
-			//
-			// — Migration ADDITIVE (cas A, automatique) :
-			// .lightweight(fromVersion: FinoriaSchemaV1.self,
-			//              toVersion:   FinoriaSchemaV2.self),
-			//
-			// — Migration COMPLEXE (cas B, manuelle, sans perte) :
+			// V1 → V2 : ADDITIF (inverses explicites de customCategory).
+			// Aucune donnée à transformer → migration légère automatique.
+			.lightweight(fromVersion: FinoriaSchemaV1.self,
+						 toVersion:   FinoriaSchemaV2.self)
+
+			// Modèle pour une future étape COMPLEXE (cas B, manuelle, sans perte) :
 			// .custom(
-			//     fromVersion: FinoriaSchemaV1.self,
-			//     toVersion:   FinoriaSchemaV2.self,
+			//     fromVersion: FinoriaSchemaV2.self,
+			//     toVersion:   FinoriaSchemaV3.self,
 			//     willMigrate: { context in
 			//         // Recopier l'ancienne donnée vers le nouveau champ AVANT
 			//         // que l'ancien ne disparaisse, puis context.save().
@@ -170,5 +200,5 @@ enum FinoriaMigrationPlan: SchemaMigrationPlan {
 ///
 /// `SwiftDataService` construit le `ModelContainer` à partir de cet alias et de
 /// `FinoriaMigrationPlan`. Lors de l'introduction d'une nouvelle version, c'est
-/// la SEULE ligne à modifier ici (la faire pointer vers `FinoriaSchemaV2`).
-typealias FinoriaCurrentSchema = FinoriaSchemaV1
+/// la SEULE ligne à modifier ici (la faire pointer vers `FinoriaSchemaV3`, etc.).
+typealias FinoriaCurrentSchema = FinoriaSchemaV2

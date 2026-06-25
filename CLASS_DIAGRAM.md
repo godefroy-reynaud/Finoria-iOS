@@ -120,8 +120,8 @@ classDiagram
     Account "1" *-- "0..*" CustomTransactionCategory : customTransactionCategories, cascade
 
     Transaction "0..*" --> "0..1" CustomTransactionCategory : customCategory, nullify
-    WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory
-    RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory
+    WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory, nullify
+    RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory, nullify
     Transaction "0..*" --> "0..1" RecurringTransaction : sourceRecurringTransaction, nullify
 
     StylableEnum <|.. AccountStyle
