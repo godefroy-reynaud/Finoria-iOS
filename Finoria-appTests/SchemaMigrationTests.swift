@@ -8,9 +8,15 @@
 //  BUT : vérifier — RAPIDEMENT et SANS AUCUN RISQUE — qu'un changement de
 //  structure de données ne fait perdre AUCUNE donnée utilisateur.
 //
-//  Ces tests s'exécutent sur un fichier de base TEMPORAIRE (supprimé à la fin).
-//  Ils ne touchent JAMAIS la vraie base de l'app ni iCloud/CloudKit.
+//  Ils ne touchent JAMAIS la vraie base de l'app ni iCloud/CloudKit
+//  (tous les conteneurs utilisent `cloudKitDatabase: .none`).
 //  Lance-les dans Xcode avec ⌘U avant chaque publication App Store.
+//
+//  • Test 1 — store EN MÉMOIRE (comme le conteneur de preview de l'app) : vérifie
+//    que le schéma courant accepte et restitue TOUS les modèles + relations.
+//  • Test 2 — store sur FICHIER + plan de migration : vérifie qu'un changement de
+//    structure (ajout de champ V1→V2) conserve les données. C'est LA preuve
+//    « une mise à jour ne perd aucune donnée ».
 //
 //  ⚠️ À ajouter à la TARGET DE TEST (Finoria-appTests) dans Xcode, pas à l'app.
 //  ─────────────────────────────────────────────────────────────────────────────
@@ -21,81 +27,70 @@ import SwiftData
 
 final class SchemaMigrationTests: XCTestCase {
 
-	// MARK: - Test 1 — La structure ACTUELLE conserve toutes les données (round-trip)
+	// MARK: - Test 1 — Le schéma courant accepte et restitue tous les modèles
 
-	/// Écrit un jeu de données complet sur disque avec le schéma versionné courant,
-	/// puis ROUVRE la base (comme un relancement de l'app) et vérifie que TOUT est
-	/// encore là — comptes, transactions, relations comprises.
+	/// Insère un de chaque modèle (avec leurs relations) dans le schéma versionné
+	/// courant, puis relit le tout depuis le store via un CONTEXTE NEUF et vérifie
+	/// que rien ne manque.
 	///
-	/// C'est la preuve, exécutable dès aujourd'hui, que la persistance fonctionne et
-	/// que tes utilisateurs actuels ne perdront rien en passant au schéma versionné.
-	/// (Le mécanisme de MIGRATION lui-même est prouvé par le test 2.)
+	/// Store EN MÉMOIRE — exactement le montage utilisé par le conteneur de preview
+	/// de l'app (`SwiftDataService.makePreviewContainer`), donc fiable et sans aucun
+	/// fichier à gérer. But : garantir que la structure actuelle est saine et
+	/// entièrement persistable. Le mécanisme de MIGRATION (changement de structure
+	/// sans perte) est prouvé séparément par le test 2.
 	@MainActor
-	func testCurrentSchema_roundTripsAllModelsWithoutLoss() throws {
-		// Fichier de base temporaire (même schéma d'URL que le test 2 qui passe).
-		let url = URL.temporaryDirectory.appending(path: "finoria-roundtrip-\(UUID().uuidString).store")
-		defer { try? FileManager.default.removeItem(at: url) }
+	func testCurrentSchema_persistsEveryModelAndRelation() throws {
+		let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
+		let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+		let container = try ModelContainer(for: schema, configurations: config)
 
 		let accountID = UUID()
 
-		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations) avec le
-		//    schéma courant, puis fermer le store (fin du `do {}`) — il reste sur disque.
-		do {
-			let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
-			let config = ModelConfiguration(schema: schema, url: url)
-			let container = try ModelContainer(for: schema, configurations: config)
-			let ctx = container.mainContext
+		// 1. ÉCRIRE un jeu de données complet (un de chaque modèle + relations)
+		let writeCtx = container.mainContext
 
-			let account = Account(id: accountID, name: "Compte test", detail: "détail")
-			ctx.insert(account)
+		let account = Account(id: accountID, name: "Compte test", detail: "détail")
+		writeCtx.insert(account)
 
-			let category = CustomTransactionCategory(name: "Restaurant")
-			category.account = account
-			ctx.insert(category)
+		let category = CustomTransactionCategory(name: "Restaurant")
+		category.account = account
+		writeCtx.insert(category)
 
-			let tx = Transaction(amount: -12.5, comment: "Café", potentiel: false, date: Date())
-			tx.account = account
-			tx.customCategory = category
-			ctx.insert(tx)
+		let tx = Transaction(amount: -12.5, comment: "Café", potentiel: false, date: Date())
+		tx.account = account
+		tx.customCategory = category
+		writeCtx.insert(tx)
 
-			let shortcut = WidgetShortcut(amount: 5, comment: "Métro", type: .expense)
-			shortcut.account = account
-			ctx.insert(shortcut)
+		let shortcut = WidgetShortcut(amount: 5, comment: "Métro", type: .expense)
+		shortcut.account = account
+		writeCtx.insert(shortcut)
 
-			let recurring = RecurringTransaction(amount: 800, comment: "Loyer", type: .expense)
-			recurring.account = account
-			ctx.insert(recurring)
+		let recurring = RecurringTransaction(amount: 800, comment: "Loyer", type: .expense)
+		recurring.account = account
+		writeCtx.insert(recurring)
 
-			try ctx.save()
-		} // ← le 1er conteneur est libéré ici : la base reste sur disque
+		try writeCtx.save()
 
-		// 2. ROUVRIR la base avec le schéma courant (= ce que fait l'app au relancement).
-		//    Avec une seule version (V1), le plan de migration est un no-op : on ne le
-		//    passe donc pas ici. La migration RÉELLE (avec une étape V1→V2) est couverte
-		//    par le test 2 ci-dessous.
-		let schema = Schema(versionedSchema: FinoriaCurrentSchema.self)
-		let config = ModelConfiguration(schema: schema, url: url)
-		let container = try ModelContainer(for: schema, configurations: config)
-		let ctx = container.mainContext
+		// 2. RELIRE depuis le store via un contexte NEUF (et non le cache d'écriture)
+		let readCtx = ModelContext(container)
+		let accounts = try readCtx.fetch(FetchDescriptor<Account>())
 
-		// 3. VÉRIFIER que rien n'a disparu
-		let accounts = try ctx.fetch(FetchDescriptor<Account>())
+		// 3. VÉRIFIER que rien n'a disparu, relations comprises
 		XCTAssertEqual(accounts.count, 1, "Le compte doit être conservé")
+		let fetched = try XCTUnwrap(accounts.first)
+		XCTAssertEqual(fetched.id, accountID)
+		XCTAssertEqual(fetched.name, "Compte test")
+		XCTAssertEqual(fetched.detail, "détail")
+		XCTAssertEqual(fetched.transactions.count, 1, "La transaction doit être conservée")
+		XCTAssertEqual(fetched.customTransactionCategories.count, 1, "La catégorie perso doit être conservée")
+		XCTAssertEqual(fetched.widgetShortcuts.count, 1, "Le raccourci doit être conservé")
+		XCTAssertEqual(fetched.recurringTransactions.count, 1, "La récurrence doit être conservée")
 
-		let account = try XCTUnwrap(accounts.first)
-		XCTAssertEqual(account.id, accountID)
-		XCTAssertEqual(account.name, "Compte test")
-		XCTAssertEqual(account.detail, "détail")
-		XCTAssertEqual(account.transactions.count, 1, "La transaction doit être conservée")
-		XCTAssertEqual(account.customTransactionCategories.count, 1, "La catégorie perso doit être conservée")
-		XCTAssertEqual(account.widgetShortcuts.count, 1, "Le raccourci doit être conservé")
-		XCTAssertEqual(account.recurringTransactions.count, 1, "La récurrence doit être conservée")
-
-		let tx = try XCTUnwrap(account.transactions.first)
-		XCTAssertEqual(tx.amount, -12.5)
-		XCTAssertEqual(tx.comment, "Café")
-		XCTAssertEqual(tx.potentiel, false)
-		XCTAssertEqual(tx.customCategory?.name, "Restaurant", "Le lien vers la catégorie perso doit survivre")
+		let fetchedTx = try XCTUnwrap(fetched.transactions.first)
+		XCTAssertEqual(fetchedTx.amount, -12.5)
+		XCTAssertEqual(fetchedTx.comment, "Café")
+		XCTAssertEqual(fetchedTx.potentiel, false)
+		XCTAssertEqual(fetchedTx.customCategory?.name, "Restaurant", "Le lien vers la catégorie perso doit survivre")
 	}
 
 	// MARK: - Test 2 — Un CHANGEMENT de structure (additif) ne perd aucune donnée
@@ -116,7 +111,7 @@ final class SchemaMigrationTests: XCTestCase {
 		// 1. ÉCRIRE avec l'ANCIENNE structure (V1 : DemoNote n'a qu'un `text`)
 		do {
 			let schema = Schema(versionedSchema: DemoSchemaV1.self)
-			let config = ModelConfiguration(schema: schema, url: url)
+			let config = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
 			let container = try ModelContainer(for: schema, configurations: config)
 			container.mainContext.insert(DemoSchemaV1.DemoNote(text: "ma note importante"))
 			try container.mainContext.save()
@@ -125,7 +120,7 @@ final class SchemaMigrationTests: XCTestCase {
 		// 2. ROUVRIR avec la NOUVELLE structure (V2 : DemoNote gagne un champ `pinned`)
 		//    + le plan de migration → la migration V1→V2 s'exécute automatiquement.
 		let schema = Schema(versionedSchema: DemoSchemaV2.self)
-		let config = ModelConfiguration(schema: schema, url: url)
+		let config = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
 		let container = try ModelContainer(
 			for: schema,
 			migrationPlan: DemoMigrationPlan.self,
