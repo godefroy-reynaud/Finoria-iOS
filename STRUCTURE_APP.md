@@ -76,21 +76,20 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Purpose:** ⚠️ Versioned-schema + migration infrastructure — the single control point for evolving the data structure **without losing any user data** (on device or in iCloud).
 
-**Type:** `enum FinoriaSchemaV1: VersionedSchema`, `enum FinoriaSchemaV2: VersionedSchema`, `enum FinoriaMigrationPlan: SchemaMigrationPlan`, and `typealias FinoriaCurrentSchema = FinoriaSchemaV2`.
+**Type:** `enum FinoriaSchemaV1: VersionedSchema`, `enum FinoriaMigrationPlan: SchemaMigrationPlan`, and `typealias FinoriaCurrentSchema = FinoriaSchemaV1`.
 
 **Dependencies:** SwiftData; the five @Model types (referenced, not redefined).
 
 **Members:**
 | Name | Kind | Description |
 |------|------|-------------|
-| FinoriaSchemaV1.versionIdentifier | static Schema.Version | `1.0.0` — first frozen schema snapshot |
-| FinoriaSchemaV2.versionIdentifier | static Schema.Version | `2.0.0` — **current** schema; adds explicit `customCategory` inverses on `CustomTransactionCategory` (additive change) |
-| FinoriaSchemaVx.models | static [any PersistentModel.Type] | The five models composing the version (same composition in V1 and V2) |
-| FinoriaMigrationPlan.schemas | static [any VersionedSchema.Type] | Ordered list of all schema versions (`[V1, V2]`) |
-| FinoriaMigrationPlan.stages | static [MigrationStage] | `.lightweight(V1 → V2)` — additive, zero data loss |
-| FinoriaCurrentSchema | typealias | Always points to the latest version (`V2`); the one line to flip when adding `V3` |
+| FinoriaSchemaV1.versionIdentifier | static Schema.Version | `1.0.0` — current schema; freezes the model composition |
+| FinoriaSchemaV1.models | static [any PersistentModel.Type] | The five models composing the schema |
+| FinoriaMigrationPlan.schemas | static [any VersionedSchema.Type] | Ordered list of schema versions (`[V1]`) |
+| FinoriaMigrationPlan.stages | static [MigrationStage] | **Empty on purpose** — additive changes use SwiftData's automatic lightweight migration |
+| FinoriaCurrentSchema | typealias | Points to the current version (`V1`) |
 
-**Notes:** Consumed by `SwiftDataService`, which builds every `ModelContainer` from `FinoriaCurrentSchema` + `FinoriaMigrationPlan`. The file header documents the full migration procedure (additive = `.lightweight`, complex = `.custom` with `willMigrate`/`didMigrate`), the CloudKit additive-only constraint, and a copy-paste V3 template. **Golden rule: never edit a shipped `FinoriaSchemaVx`; add a new version + stage instead.** Each `@Model` carries a one-line reminder pointing here. V2 doubles as a real-world test of the migration mechanism: V1-created data must survive intact after upgrading to V2.
+**Notes:** Consumed by `SwiftDataService`, which builds every `ModelContainer` from `FinoriaCurrentSchema` + `FinoriaMigrationPlan`. ⚠️ **`stages` must stay empty while the `VersionedSchema`s share the same live `@Model` types**: two such versions have identical schema checksums, and adding a `.lightweight(V1 → V2)` stage between them throws in `NSLightweightMigrationStage` and **crashes the app on launch** (this regressed in build 286 and was reverted). Additive changes (new defaulted property, new `@Model`, new optional relationship/inverse) therefore need no new version and no stage — automatic lightweight migration handles them. A genuine staged migration would first require freezing per-version copies of the models. Each `@Model` carries a one-line reminder pointing here; the file header documents all of this.
 
 ---
 **`Finoria-app/Models/Account.swift`**
@@ -227,15 +226,15 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | colorHex | String | "#RRGGBB" (default "#8E8E93") |
 | account | Account? | Owner |
 | transactions | [Transaction] | `.nullify` delete, inverse `Transaction.customCategory` |
-| widgetShortcuts | [WidgetShortcut] | `.nullify` delete, inverse `WidgetShortcut.customCategory` (explicit since schema V2) |
-| recurringTransactions | [RecurringTransaction] | `.nullify` delete, inverse `RecurringTransaction.customCategory` (explicit since schema V2) |
+| widgetShortcuts | [WidgetShortcut] | `.nullify` delete, inverse `WidgetShortcut.customCategory` (explicit) |
+| recurringTransactions | [RecurringTransaction] | `.nullify` delete, inverse `RecurringTransaction.customCategory` (explicit) |
 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
 | resolvedColor | — | Color | `Color(finoriaHex: colorHex)` |
 
-**Notes:** All three inverse relationships are declared **explicitly** (`@Relationship(deleteRule: .nullify, inverse:)`) so deleting a custom category deterministically nulls it on the transactions, shortcuts and recurrences that referenced it. The shortcut/recurrence inverses were made explicit in **schema V2** (previously synthesized by SwiftData) — see `FinoriaSchema.swift`.
+**Notes:** All three inverse relationships are declared **explicitly** (`@Relationship(deleteRule: .nullify, inverse:)`) so deleting a custom category deterministically nulls it on the transactions, shortcuts and recurrences that referenced it. The shortcut/recurrence inverses were previously synthesized by SwiftData and were made explicit — an additive change applied via automatic lightweight migration (no schema version bump; see `FinoriaSchema.swift`).
 
 ---
 **`Finoria-app/Models/TransactionCategory.swift`**
@@ -1276,9 +1275,10 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 Persistence is versioned end-to-end so the data structure can evolve across app updates without ever losing user data (on device or in iCloud).
 
-- **Source of truth:** [`FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift) — `FinoriaSchemaV1` (first frozen snapshot) and `FinoriaSchemaV2` (current; explicit `customCategory` inverses), `FinoriaMigrationPlan` (versions `[V1, V2]` + a `.lightweight(V1 → V2)` stage), and the `FinoriaCurrentSchema = FinoriaSchemaV2` alias.
+- **Source of truth:** [`FinoriaSchema.swift`](Finoria-app/Models/FinoriaSchema.swift) — `FinoriaSchemaV1` (current schema), `FinoriaMigrationPlan` (versions `[V1]`, **empty `stages`**), and the `FinoriaCurrentSchema = FinoriaSchemaV1` alias.
 - **Wiring:** `SwiftDataService` builds **all three** containers (production CloudKit, on-disk fallback, in-memory preview) from `Schema(versionedSchema: FinoriaCurrentSchema.self)` and passes `migrationPlan: FinoriaMigrationPlan.self`. The migration plan therefore runs identically in every mode.
-- **Golden rule:** never modify a `FinoriaSchemaVx` already shipped. To change the structure: create the next version (`FinoriaSchemaV3`), add a `MigrationStage` (`.lightweight` for additive changes, `.custom` with `willMigrate`/`didMigrate` for renames/transforms), register both in `FinoriaMigrationPlan`, then point `FinoriaCurrentSchema` at it.
+- **Additive changes (the normal case):** edit the `@Model`s directly — new defaulted property, new model, new optional relationship/inverse. Do **not** add a schema version or a migration stage; SwiftData's automatic lightweight migration handles it without data loss.
+- **⚠️ Never add a `MigrationStage` between versions that share the same live `@Model` types:** their schema checksums are identical, so `.lightweight(V1 → V2)` throws in `NSLightweightMigrationStage` and **crashes on launch** (build 286 regression — reverted). A real staged migration first requires freezing per-version model copies.
 - **CloudKit constraint:** schema changes must be additive (new properties with defaults, new models, optional relationships). Never delete/rename server-side fields; to "rename", add the new field, migrate the data, keep the old one.
 - **Not covered by the migration plan (manual rules):** (1) enum `rawValue` stability — `category`/`style`/`type`/`frequency` persist by case name, so you may *add* cases but never rename/remove a shipped one (change `label`, not the `case`); (2) frozen identifiers — never change the CloudKit container `iCloud.com.godefroyinformatique.GDF-app` or the bundle ID after release. See the "pitfalls" section in [DATA_MODEL.md](DATA_MODEL.md).
-- **Guardrails:** every `@Model` carries a one-line reminder pointing to `FinoriaSchema.swift`; the file header holds the full procedure + a copy-paste V3 template. Migrations must be tested against an old-version store before publishing.
+- **Guardrails:** every `@Model` carries a one-line reminder pointing to `FinoriaSchema.swift`; the file header holds the full procedure and the crash warning. Migrations must be tested against an old-version store before publishing.

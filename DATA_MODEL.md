@@ -66,8 +66,8 @@ erDiagram
 > inverses (`transactions`, `widgetShortcuts`, `recurringTransactions`), toutes en
 > `deleteRule: .nullify`. Supprimer une catégorie perso met donc `customCategory = nil`
 > sur les transactions, raccourcis et récurrences qui la référençaient, de façon
-> **garantie** (plus aucun inverse synthétisé implicitement). Ce passage aux inverses
-> explicites est l'objet du schéma **V2** (voir ci-dessous).
+> **garantie** (plus aucun inverse synthétisé implicitement). C'est un changement
+> additif, appliqué par migration automatique (voir la section migration ci-dessous).
 
 > **Cardinalités** — Mermaid impose la notation « patte d'oie » sur le trait
 > (`||` = exactement 1, `o{` = 0..*, `o|` = 0..1). Les multiplicités numériques
@@ -103,34 +103,50 @@ dans iCloud). Tout est centralisé dans
 
 | Élément | Rôle |
 |---|---|
-| `FinoriaSchemaV1` | Instantané figé de la première structure (version `1.0.0`). **Ne jamais le modifier.** |
-| `FinoriaSchemaV2` | Structure **courante** (version `2.0.0`) : inverses `customCategory` explicites. Migration `V1 → V2` = `.lightweight` (additive). **Ne jamais la modifier une fois publiée.** |
-| `FinoriaMigrationPlan` | Liste ordonnée des versions (`V1`, `V2`) + étapes de migration entre elles |
-| `FinoriaCurrentSchema` | Alias vers la dernière version (`V2`) ; lu par `SwiftDataService` pour construire le `ModelContainer` (la seule ligne à changer pour activer une nouvelle version) |
+| `FinoriaSchemaV1` | Schéma **courant** (version `1.0.0`). Fige la composition des modèles. |
+| `FinoriaMigrationPlan` | Liste des versions (`[V1]`) + étapes de migration. **`stages` est volontairement VIDE.** |
+| `FinoriaCurrentSchema` | Alias vers la version courante (`V1`) ; lu par `SwiftDataService` pour construire le `ModelContainer`. |
 
-> 💡 La V2 sert aussi de **test grandeur nature** de la mécanique de migration : un
-> appareil ayant des données créées en V1 doit les conserver à 100 % après installation
-> de la version V2. C'est le bon moment pour valider ce filet de sécurité, avant publication.
+> ⚠️ **`stages` doit rester VIDE tant que les `VersionedSchema` partagent les mêmes
+> types `@Model`.** Comme `FinoriaSchemaVx.models` référence les vrais types vivants
+> (`Account`, `Transaction`…), deux versions produisent un schéma au **checksum
+> identique**. Ajouter une `MigrationStage.lightweight(V1 → V2)` entre deux schémas
+> identiques **fait crasher l'app au lancement** (`NSLightweightMigrationStage` lève une
+> NSException non rattrapable → abort). Pour les changements **additifs**, on ne crée
+> donc NI nouvelle version NI étape : SwiftData applique une **migration légère
+> automatique** qui suffit. (Régression réellement survenue sur le build 286, corrigée.)
 
-**Procédure pour changer la structure (résumé) :**
+**Procédure pour un changement ADDITIF (le cas courant — nouvelle propriété avec défaut,
+nouveau `@Model`, nouvelle relation/inverse optionnel) :**
 
-1. Ne pas toucher au `FinoriaSchemaVx` déjà publié.
-2. Créer `FinoriaSchemaV2` (copie de V1 + le changement).
-3. Ajouter l'étape de migration dans `FinoriaMigrationPlan.stages` :
-   - **Additif** (nouvelle propriété avec valeur par défaut, nouveau `@Model`, relation optionnelle) → `.lightweight(fromVersion:toVersion:)` (automatique, compatible CloudKit).
-   - **Complexe** (renommage, fusion, transformation) → `.custom(...)` avec `willMigrate`/`didMigrate` qui recopie l'ancienne donnée vers la nouvelle **avant** disparition de l'ancienne.
-4. Faire pointer `FinoriaCurrentSchema` vers la nouvelle version.
-5. Tester la migration sur un appareil contenant des données de l'ancienne version **avant** publication.
+1. Éditer directement les `@Model` concernés.
+2. **Ne pas** créer de nouvelle version, **ne pas** toucher à `stages` (rester vide).
+3. SwiftData migre automatiquement le store existant, sans perte.
+4. Tester sur un appareil contenant des données de la version précédente **avant** publication.
+
+**Pour un changement COMPLEXE (renommer / fusionner / transformer)** — rare et à éviter :
+il faut une vraie migration par étapes, ce qui impose d'abord de **figer une copie des
+modèles par version** (types imbriqués dans chaque `enum VersionedSchema`, et non les
+types partagés actuels), sinon checksums identiques → crash. Voir l'en-tête détaillé de
+`FinoriaSchema.swift`.
 
 > ⚠️ **CloudKit n'accepte que les évolutions additives** : on ne supprime/renomme jamais
 > un champ côté serveur. Pour « renommer », on ajoute le nouveau champ, on migre la donnée
-> et on garde l'ancien (déprécié). La procédure complète et un modèle de V2 prêt à copier
-> figurent dans l'en-tête de `FinoriaSchema.swift`.
+> et on garde l'ancien (déprécié).
 
-## Pièges à connaître pour faire évoluer la structure (à lire avant la V2)
+> ℹ️ **Inverses `customCategory` explicites** — `CustomTransactionCategory` déclare
+> désormais explicitement `widgetShortcuts` / `recurringTransactions` (au lieu d'inverses
+> synthétisés). C'est un changement **additif**, appliqué par migration automatique (pas
+> d'étape, pas de bump de version).
 
-Au-delà de la procédure de migration `@Model`, trois points ne sont **pas** couverts par
+## Pièges à connaître pour faire évoluer la structure
+
+Au-delà de la migration `@Model` automatique, ces points ne sont **pas** couverts par
 le plan de migration et peuvent corrompre des données déjà publiées s'ils sont ignorés :
+
+0. **Ne JAMAIS ajouter une `MigrationStage` entre des versions à types `@Model` partagés**
+   (voir l'encadré ci-dessus) — crash garanti au lancement. Les changements additifs se
+   font sans étape ; les changements complexes exigent d'abord des modèles figés par version.
 
 1. **Stabilité des `rawValue` d'enum** — `category` (`TransactionCategory`),
    `style` (`AccountStyle`), `type` (`TransactionType`) et `frequency`
@@ -147,9 +163,10 @@ le plan de migration et peuvent corrompre des données déjà publiées s'ils so
    sont rattachées. Le nom interne historique (`GDF-app`) est sans importance, ne pas
    chercher à le « nettoyer ».
 
-3. **Inverses de relation explicites (robustesse)** — ✅ Fait en V2 :
+3. **Inverses de relation explicites (robustesse)** — ✅ Fait :
    `CustomTransactionCategory` déclare désormais explicitement `widgetShortcuts` et
    `recurringTransactions` (`deleteRule: .nullify`), au lieu de s'appuyer sur l'inverse
-   synthétisé par SwiftData. Le comportement de suppression est garanti et lisible. À
+   synthétisé par SwiftData. Le comportement de suppression est garanti et lisible
+   (changement additif, migré automatiquement — sans nouvelle version ni étape). À
    garder comme exemple de référence pour toute future relation : **toujours déclarer
    l'inverse explicitement.**
