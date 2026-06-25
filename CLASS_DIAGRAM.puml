@@ -84,6 +84,7 @@ package "Models (SwiftData)" #F4F8FB {
     + isPaused : Bool
     --
     + account : Account?
+    + customCategory : CustomTransactionCategory?
     + generatedTransactions : [Transaction]   <<nullify>>
     --
     + occurrences(from:to:) : [Date]
@@ -246,7 +247,6 @@ package "Services" #F7F2F7 {
   }
 
   class CloudKitService <<enum/namespace>> {
-    {static} subscribeToAnnouncements() async
     {static} checkAccountStatus() async : CloudKitStatus
   }
 
@@ -272,7 +272,7 @@ package "Services" #F7F2F7 {
   class AppStorageKeys <<enum/namespace>> {
     {static} lastSelectedAccountId : String
     {static} hasSeenWelcome : String
-    {static} cloudKitAnnouncementsSubscriptionSaved : String
+    {static} hasSeenICloudWarning : String
   }
 }
 
@@ -344,6 +344,8 @@ Account "1" o-- "0..*" RecurringTransaction       : recurringTransactions\ncasca
 Account "1" o-- "0..*" CustomTransactionCategory  : customTransactionCategories\ncascade
 
 Transaction "0..*" --> "0..1" CustomTransactionCategory : customCategory\nnullify
+WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory
+RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory
 Transaction "0..*" --> "0..1" RecurringTransaction      : sourceRecurringTransaction\nnullify
 
 '====================================================================
@@ -375,8 +377,8 @@ CalculationService ..> Transaction
 CSVService ..> Transaction
 CSVService +-- ExportRow
 CloudKitService ..> CloudKitStatus
-CloudKitService ..> AppStorageKeys
 AccountsManager ..> AppStorageKeys
+ContentView ..> AppStorageKeys
 
 '====================================================================
 ' RELATIONS — App entry
@@ -384,7 +386,6 @@ AccountsManager ..> AppStorageKeys
 FinoriaApp *--> "0..1" AccountsManager
 FinoriaApp *--> AppDelegate
 FinoriaApp ..> SwiftDataService : makeContainer
-FinoriaApp ..> CloudKitService : subscribe
 FinoriaApp ..> NotificationManager
 FinoriaApp ..> ContentView : root
 FinoriaApp ..> DatabaseErrorView : fallback

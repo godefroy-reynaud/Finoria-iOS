@@ -20,8 +20,7 @@
 - **Analyses** — interactive donut chart (Swift Charts) of expenses or income by category, month-by-month navigation, tap-to-highlight slices, drill-down to a category's transactions grouped by day
 - **Calendar navigation** — browse validated transactions by day / month / year with per-period totals
 - **CSV export & import** — RFC 4180-compliant export via the system share sheet (generated off the main thread, on demand), import via the document picker with category re-matching
-- **iCloud sync (CloudKit)** — automatic, via SwiftData's CloudKit integration; explicit account-status diagnostics with user-friendly alerts (no account, restricted, quota exceeded, offline…)
-- **Push announcements** — CloudKit public-database subscription lets the developer broadcast notifications to all installs
+- **iCloud sync (CloudKit)** — automatic, via SwiftData's CloudKit integration; explicit account-status diagnostics with a user-friendly alert (no account, restricted, quota exceeded, offline…) that the user can dismiss permanently with "Ne plus afficher"
 - **Weekly local reminder** — Sunday 20:00 "did you log your purchases?" notification
 - **Onboarding** — Apple-style "What's New" welcome sheet on first launch
 - Full dark-mode support; graceful full-screen error view if the database cannot be initialized
@@ -35,7 +34,7 @@
 | Sync | CloudKit via SwiftData `cloudKitDatabase: .automatic` — container `iCloud.com.godefroyinformatique.GDF-app` |
 | Charts | Swift Charts (`SectorMark` donut) |
 | Concurrency | Swift Concurrency — `@Observable` + `@MainActor` data layer, `async/await`; **Swift 5 language mode** (`SWIFT_VERSION = 5.0`; concurrency annotations are Swift 6-ready but not compiler-enforced yet) |
-| Notifications | UserNotifications (local weekly reminder) + CloudKit push (silent sync + public announcements) |
+| Notifications | UserNotifications (local weekly reminder) + CloudKit **silent** sync pushes (`registerForRemoteNotifications`) |
 | Logging | `os.log` `Logger` (CSV/calculation services still use `print()`) |
 | Third-party packages | **None** (the SPM sections of the project are empty) |
 | Language / locale | Swift; UI strings and date formats hardcoded French (`fr_FR`), currency EUR |
@@ -62,7 +61,7 @@ Finoria-iOS/
     ├── FinoriaApp.swift                  # @main — container setup w/ fallback + error screen, env injection
     ├── Notifications.swift               # AppDelegate (push/CloudKit) + NotificationManager (weekly local)
     ├── PrivacyInfo.xcprivacy             # Privacy manifest (UserDefaults, reason CA92.1)
-    ├── Localizable.strings               # CloudKit announcement push localization keys
+    ├── Localizable.strings               # Localization file (empty since remote announcements were removed)
     ├── LaunchScreen.storyboard           # Launch screen
     ├── Models/
     │   ├── FinoriaSchema.swift           # ⚠️ Versioned schema (FinoriaSchemaV1) + migration plan — change here to evolve structure w/o data loss
@@ -86,7 +85,7 @@ Finoria-iOS/
     │   ├── CalculationService.swift      # Pure financial math: totals, per-month/year filters, % change
     │   ├── RecurrenceEngine.swift        # Generates/validates recurring transaction instances
     │   ├── CSVService.swift              # RFC 4180 CSV export (off-main, Sendable rows) + import parser
-    │   └── CloudKitService.swift         # iCloud account diagnostics + announcements push subscription
+    │   └── CloudKitService.swift         # iCloud account-status diagnostics (user-facing alerts)
     ├── Extensions/
     │   ├── StylableEnum.swift            # Style protocol (icon/color/label) — adopted by AccountStyle & TransactionCategory
     │   ├── AmountFormatting.swift        # compactAmount(_:) — locale-aware compact amount formatter

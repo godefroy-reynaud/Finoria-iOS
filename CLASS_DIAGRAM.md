@@ -42,6 +42,7 @@ classDiagram
         +String comment
         +TransactionType type
         +TransactionCategory category
+        +CustomTransactionCategory? customCategory
         +displayCategoryIcon String
         +displayCategoryColor Color
     }
@@ -53,6 +54,7 @@ classDiagram
         +String comment
         +TransactionType type
         +TransactionCategory category
+        +CustomTransactionCategory? customCategory
         +RecurrenceFrequency frequency
         +Date startDate
         +Date? lastGeneratedDate
@@ -118,6 +120,8 @@ classDiagram
     Account "1" *-- "0..*" CustomTransactionCategory : customTransactionCategories, cascade
 
     Transaction "0..*" --> "0..1" CustomTransactionCategory : customCategory, nullify
+    WidgetShortcut "0..*" --> "0..1" CustomTransactionCategory : customCategory
+    RecurringTransaction "0..*" --> "0..1" CustomTransactionCategory : customCategory
     Transaction "0..*" --> "0..1" RecurringTransaction : sourceRecurringTransaction, nullify
 
     StylableEnum <|.. AccountStyle
@@ -198,7 +202,6 @@ classDiagram
 
     class CloudKitService {
         <<enum namespace>>
-        +subscribeToAnnouncements() async
         +checkAccountStatus() async CloudKitStatus
     }
 
@@ -225,7 +228,7 @@ classDiagram
         <<enum namespace>>
         +String lastSelectedAccountId
         +String hasSeenWelcome
-        +String cloudKitAnnouncementsSubscriptionSaved
+        +String hasSeenICloudWarning
     }
 
     class FinoriaApp {
@@ -257,7 +260,6 @@ classDiagram
 
     CSVService *-- ExportRow
     CloudKitService ..> CloudKitStatus
-    CloudKitService ..> AppStorageKeys
 ```
 
 ## 3. Hiérarchie des vues (SwiftUI)

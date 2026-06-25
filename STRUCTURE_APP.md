@@ -1,6 +1,6 @@
 # Finoria — Complete Code Structure Reference
 
-*Last updated: 2026-06-15*
+*Last updated: 2026-06-25*
 
 This file documents **every Swift file** in the project so a developer or AI can understand any class, function, or view without opening the source. Companion overview: [README.md](README.md).
 
@@ -31,7 +31,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| init | — | — | Tries `makeContainer()` (CloudKit), falls back to `makeFallbackContainer()` (local disk); on double failure stores `initErrorMessage` instead of crashing. On success: creates AccountsManager from `mainContext`, requests notification permission, schedules the weekly reminder, subscribes to CloudKit announcements (`Task`) |
+| init | — | — | Tries `makeContainer()` (CloudKit), falls back to `makeFallbackContainer()` (local disk); on double failure stores `initErrorMessage` instead of crashing. On success: creates AccountsManager from `mainContext`, requests notification permission, schedules the weekly reminder |
 | body | — | some Scene | `WindowGroup`: if container+manager exist → `ContentView().environment(manager).modelContainer(container)`; otherwise `DatabaseErrorView` |
 
 **Notes:** `.modelContainer` is applied on the view (not the Scene) because the container is optional. Notifications are only set up when the database is functional.
@@ -65,7 +65,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | scheduleWeeklyNotification (private) | — | — | Calendar trigger: Sunday (weekday 1) 20:00, repeating |
 | resetNotifications | — | — | Removes all pending local notifications |
 
-**Notes:** Push localization for CloudKit announcements uses `CK_ANNOUNCEMENT_TITLE/BODY` keys in `Localizable.strings`.
+**Notes:** The `AppDelegate` only registers for remote notifications to enable CloudKit **silent** sync pushes — there is no longer any user-facing remote announcement feature (it was removed; see `ARCHIVE_notifications-distantes.md`). `Localizable.strings` therefore holds no `CK_ANNOUNCEMENT_*` keys anymore.
 
 ---
 
@@ -325,14 +325,14 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Type:** Caseless `enum AppStorageKeys` (namespace).
 
-**Dependencies:** Foundation. Used by AccountsManager, ContentView, CloudKitService.
+**Dependencies:** Foundation. Used by AccountsManager, ContentView.
 
 **Properties:**
 | Name | Type | Description |
 |------|------|-------------|
 | lastSelectedAccountId | static String "lastSelectedAccountId" | Selected account UUID (UI preference, not synced) |
 | hasSeenWelcome | static String "hasSeenWelcome" | Welcome sheet shown once |
-| cloudKitAnnouncementsSubscriptionSaved | static String "ck_announcements_subscription_saved" | CKQuerySubscription already registered |
+| hasSeenICloudWarning | static String "hasSeenICloudWarning" | User tapped "Ne plus afficher" on the iCloud diagnostics alert — suppresses it permanently |
 
 **Methods / Computed vars:** none.
 
@@ -428,23 +428,21 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 ---
 **`Finoria-app/Services/CloudKitService.swift`**
 
-**Purpose:** iCloud account diagnostics (user-facing status messages) and the public-database "Announcements" push subscription.
+**Purpose:** iCloud account diagnostics only — produces user-facing status messages so the app can warn when iCloud sync won't work. (The former public-database "Announcements" push subscription was removed; see `ARCHIVE_notifications-distantes.md`.)
 
 **Type:** Caseless `enum CloudKitService` + nested `enum CloudKitStatus`.
 
-**Dependencies:** CloudKit, os.log, AppStorageKeys.
+**Dependencies:** CloudKit, os.log.
 
 **Properties:**
 | Name | Type | Description |
 |------|------|-------------|
 | logger | static Logger | Category "CloudKitService" |
-| container | static CKContainer | `iCloud.com.godefroyinformatique.GDF-app` |
-| subscriptionSavedKey | static String | = `AppStorageKeys.cloudKitAnnouncementsSubscriptionSaved` |
+| container | static CKContainer | `iCloud.com.godefroyinformatique.GDF-app` (frozen — never change after release) |
 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| subscribeToAnnouncements | — | async | Once per install (UserDefaults flag): registers a CKQuerySubscription on public record type "Announcements" (fires on creation) with localized alert keys; treats `.serverRejectedRequest` as already-subscribed |
 | checkAccountStatus | — | async CloudKitStatus | Maps `CKContainer.accountStatus()` (available/noAccount/restricted/couldNotDetermine/temporarilyUnavailable) and verifies container access when available |
 | verifyContainerAccess (private) | — | async CloudKitStatus | `userRecordID()` probe; maps CKError codes (network, auth, quota, rate-limit) to actionable statuses |
 | CloudKitStatus.userMessage / .alertTitle / .isAvailable | — | String/String/Bool | French user-facing alert content |
@@ -562,14 +560,15 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | showingAddTransactionSheet / tabSelection | @State Bool / @State TabItem | Sheet + tab state; TabItem = home/analyses/calendrier/futur/add |
 | scenePhase | @Environment | Foreground detection |
 | hasSeenWelcome | @AppStorage(AppStorageKeys.hasSeenWelcome) | Onboarding flag |
+| hasSeenICloudWarning | @AppStorage(AppStorageKeys.hasSeenICloudWarning) | Suppresses the iCloud alert once the user taps "Ne plus afficher" |
 | showWelcomeSheet / showCloudKitAlert / cloudKitAlertTitle / cloudKitAlertMessage | @State | Onboarding + diagnostics UI state |
 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| checkCloudKit (private) | — | — | `Task` → `CloudKitService.checkAccountStatus()`; shows alert if not available |
+| checkCloudKit (private) | — | — | Returns early if `hasSeenICloudWarning`; otherwise `Task` → `CloudKitService.checkAccountStatus()`; shows the alert if iCloud is not available |
 
-**SwiftUI body:** A `TabView` with Accueil / Analyses / Calendrier / Futur tabs and a fifth `Tab(role: .search)` rendering `Color.clear` — selecting it opens the add-transaction sheet and `onChange` snaps the selection back (the "+" is a button disguised as a tab). `onAppear`: auto-select first account, run the recurrence engine, CloudKit check, show welcome sheet once. `onChange(scenePhase == .active)`: `refreshFromStore()` + recurrence reprocessing. Hosts the CloudKit alert and the welcome sheet (sets `hasSeenWelcome` on dismiss).
+**SwiftUI body:** A `TabView` with Accueil / Analyses / Calendrier / Futur tabs and a fifth `Tab(role: .search)` rendering `Color.clear` — selecting it opens the add-transaction sheet and `onChange` snaps the selection back (the "+" is a button disguised as a tab). `onAppear`: auto-select first account, run the recurrence engine, CloudKit check, show welcome sheet once. `onChange(scenePhase == .active)`: `refreshFromStore()` + recurrence reprocessing. Hosts the welcome sheet (sets `hasSeenWelcome` on dismiss) and the iCloud diagnostics alert — its two buttons are "OK" (re-shows next launch while sync is broken) and "Ne plus afficher" (sets `hasSeenICloudWarning`, never shown again).
 
 **Notes:** The `Tab(value:role:)` builder API requires iOS 18 — this file sets the app's true minimum OS.
 
@@ -1245,7 +1244,7 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 
 **Concurrency Model:**
 - `AccountsManager` is `@MainActor` (and therefore implicitly `Sendable`); every model read/write, every view interaction, and all five `@Model` classes live on the main actor (`ModelContainer.mainContext` requirement).
-- `async/await` appears in: `CloudKitService.checkAccountStatus()`/`verifyContainerAccess()`/`subscribeToAnnouncements()` (CKContainer async APIs, called from `Task`s in ContentView/FinoriaApp); and HomeTabView's CSV export — `prepareCSV()` runs inside a `.task(id:)`, takes the main-actor snapshot `csvExportSnapshot()`, then `await`s a `Task.detached` that builds the file off-main.
+- `async/await` appears in: `CloudKitService.checkAccountStatus()`/`verifyContainerAccess()` (CKContainer async APIs, called from a `Task` in ContentView); and HomeTabView's CSV export — `prepareCSV()` runs inside a `.task(id:)`, takes the main-actor snapshot `csvExportSnapshot()`, then `await`s a `Task.detached` that builds the file off-main.
 - `CSVService.ExportRow` is the only purpose-built `Sendable` value type; it exists so transaction data can legally cross from the main actor to the export closure.
 - The project compiles in **Swift 5 language mode** — these annotations are design contracts, not yet compiler-enforced. Enable `SWIFT_STRICT_CONCURRENCY = complete` before migrating to Swift 6 mode.
 
@@ -1261,8 +1260,8 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 | Last persistence error | AccountsManager | `var lastPersistenceError: String?` (observed) | App-wide; not yet surfaced by any view |
 | Account lists | ContentView, AccountPickerView | `@Query(sort: \Account.name)` | Per-view, live |
 | Onboarding seen | ContentView | `@AppStorage(AppStorageKeys.hasSeenWelcome)` | Persistent, device-local |
+| iCloud warning dismissed | ContentView | `@AppStorage(AppStorageKeys.hasSeenICloudWarning)` | Persistent, device-local |
 | Tab selection | ContentView | `@State TabItem` | Session |
-| CloudKit announcements subscribed | CloudKitService | UserDefaults bool (`AppStorageKeys.cloudKitAnnouncementsSubscriptionSaved`) | Persistent, device-local |
 | Toast stack | HomeView | `@State [ToastData]` | Session, view-local |
 | Analyses selection (type, slice, month/year) | AnalysesView | `@State` | Session, view-local |
 | Calendar mode (Jour/Mois/Année) | CalendrierTabView | `@State CalendrierViewMode` | Session, view-local |

@@ -56,9 +56,19 @@ erDiagram
     Account ||--o{ RecurringTransaction      : "1 → 0..* · recurringTransactions · cascade"
     Account ||--o{ CustomTransactionCategory : "1 → 0..* · customTransactionCategories · cascade"
 
-    Transaction }o--o| CustomTransactionCategory : "0..* → 0..1 · customCategory · nullify"
-    Transaction }o--o| RecurringTransaction      : "0..* → 0..1 · sourceRecurringTransaction · nullify"
+    Transaction }o--o| CustomTransactionCategory          : "0..* → 0..1 · customCategory · nullify"
+    WidgetShortcut }o--o| CustomTransactionCategory       : "0..* → 0..1 · customCategory · nullify*"
+    RecurringTransaction }o--o| CustomTransactionCategory : "0..* → 0..1 · customCategory · nullify*"
+    Transaction }o--o| RecurringTransaction               : "0..* → 0..1 · sourceRecurringTransaction · nullify"
 ```
+
+> **\* Inverse synthétisé** — `Transaction.customCategory` a un inverse explicite
+> (`CustomTransactionCategory.transactions`), mais `WidgetShortcut.customCategory` et
+> `RecurringTransaction.customCategory` n'en déclarent pas : SwiftData en synthétise un
+> automatiquement (règle par défaut `nullify` pour une relation to-one optionnelle).
+> Le comportement est correct, mais pour le rendre explicite et robuste on peut ajouter
+> les collections inverses `widgetShortcuts` / `recurringTransactions` sur
+> `CustomTransactionCategory` (voir la note d'évolution en bas de page).
 
 > **Cardinalités** — Mermaid impose la notation « patte d'oie » sur le trait
 > (`||` = exactement 1, `o{` = 0..*, `o|` = 0..1). Les multiplicités numériques
@@ -75,6 +85,7 @@ erDiagram
 | `Account → RecurringTransaction` | cascade | Supprimer un compte supprime toutes ses récurrences |
 | `Account → CustomTransactionCategory` | cascade | Supprimer un compte supprime toutes ses catégories perso |
 | `CustomTransactionCategory → Transaction` | nullify | Supprimer une catégorie met `customCategory = nil` sur les transactions (elles sont conservées) |
+| `CustomTransactionCategory → WidgetShortcut` / `RecurringTransaction` | nullify (synthétisé) | Idem pour les raccourcis et récurrences qui pointaient sur la catégorie |
 | `RecurringTransaction → Transaction` | nullify | Supprimer une récurrence conserve les transactions déjà générées (historique) |
 
 ## Stockage
@@ -111,3 +122,31 @@ dans iCloud). Tout est centralisé dans
 > un champ côté serveur. Pour « renommer », on ajoute le nouveau champ, on migre la donnée
 > et on garde l'ancien (déprécié). La procédure complète et un modèle de V2 prêt à copier
 > figurent dans l'en-tête de `FinoriaSchema.swift`.
+
+## Pièges à connaître pour faire évoluer la structure (à lire avant la V2)
+
+Au-delà de la procédure de migration `@Model`, trois points ne sont **pas** couverts par
+le plan de migration et peuvent corrompre des données déjà publiées s'ils sont ignorés :
+
+1. **Stabilité des `rawValue` d'enum** — `category` (`TransactionCategory`),
+   `style` (`AccountStyle`), `type` (`TransactionType`) et `frequency`
+   (`RecurrenceFrequency`) sont persistés par leur `rawValue` (le nom du `case`).
+   On peut **ajouter** des cas sans risque (additif). Mais **renommer ou supprimer** un
+   `case` change/casse son `rawValue` : les enregistrements existants qui le contenaient
+   ne se décodent plus. Pour renommer un libellé visible, modifier `label`, **jamais** le
+   `case` lui-même. Pour retirer une catégorie, la garder dans l'enum (éventuellement
+   masquée de `allCases`) plutôt que de supprimer le `case`.
+
+2. **Identifiants iCloud figés** — le container CloudKit
+   (`iCloud.com.godefroyinformatique.GDF-app`) et le bundle identifier ne doivent
+   **jamais** changer après publication : toutes les données iCloud des utilisateurs y
+   sont rattachées. Le nom interne historique (`GDF-app`) est sans importance, ne pas
+   chercher à le « nettoyer ».
+
+3. **Inverses de relation explicites (robustesse)** — `WidgetShortcut.customCategory` et
+   `RecurringTransaction.customCategory` reposent sur un inverse synthétisé par SwiftData.
+   C'est fonctionnel, mais déclarer les collections inverses explicites sur
+   `CustomTransactionCategory` (`widgetShortcuts`, `recurringTransactions` avec
+   `deleteRule: .nullify`) rendrait le comportement de suppression **garanti et lisible**.
+   Si c'est fait, ce sera un changement de structure → versionner le schéma (migration
+   additive `.lightweight`).
