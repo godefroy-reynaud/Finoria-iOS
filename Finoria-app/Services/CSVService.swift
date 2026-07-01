@@ -49,17 +49,21 @@ struct CSVService {
 		}
 
 		// Construction du CSV
-		var csvText = "Date,Type,Montant,Commentaire,Catégorie\n"
+		var csvText = "Date,Montant,Commentaire,Catégorie\n"
 
 		let dateFormatter = DateFormatter()
 		dateFormatter.dateFormat = "dd/MM/yyyy"
 		dateFormatter.locale = Locale(identifier: "fr_FR")
 
 		for row in sortedRows {
+			// WHY: plus de colonne "Type" — le signe du montant porte l'information
+			// (dépense = négatif, revenu = positif). Le séparateur décimal est une
+			// virgule (format FR) ; comme le montant contient alors une virgule,
+			// escapeCSVField l'entoure automatiquement de guillemets pour qu'il
+			// reste bien une seule colonne.
 			let fields = [
 				row.date.map { dateFormatter.string(from: $0) } ?? "N/A",
-				row.amount >= 0 ? "Revenu" : "Dépense",
-				String(format: "%.2f", abs(row.amount)),
+				String(format: "%.2f", row.amount).replacingOccurrences(of: ".", with: ","),
 				row.comment,
 				row.categoryLabel
 			]
@@ -129,7 +133,7 @@ struct CSVService {
 				// (RFC 4180) au lieu d'un split naïf sur la virgule, qui coupait
 				// au milieu des champs échappés.
 				let columns = parseCSVLine(trimmedLine)
-				guard columns.count >= 4 else {
+				guard columns.count >= 3 else {
 					print("⚠️ Ligne invalide (colonnes insuffisantes): \(line)")
 					continue
 				}
@@ -143,32 +147,25 @@ struct CSVService {
 					date = dateFormatter.date(from: dateString)
 				}
 
-				// Parse Type
-				let typeString = columns[1].trimmingCharacters(in: .whitespacesAndNewlines)
-				let isExpense = (typeString == "Dépense")
-
-				// Parse Montant
-				let montantString = columns[2].trimmingCharacters(in: .whitespacesAndNewlines)
-				guard var amount = Double(montantString) else {
+				// Parse Montant — séparateur décimal virgule (format FR) et signe
+				// porteur du sens : négatif = dépense, positif = revenu. Plus de
+				// colonne "Type", le signe suffit.
+				let montantString = columns[1]
+					.trimmingCharacters(in: .whitespacesAndNewlines)
+					.replacingOccurrences(of: ",", with: ".")
+				guard let amount = Double(montantString) else {
 					print("⚠️ Montant invalide: \(montantString)")
 					continue
 				}
 
-				// Appliquer le signe selon le type
-				if isExpense && amount > 0 {
-					amount = -amount
-				} else if !isExpense && amount < 0 {
-					amount = abs(amount)
-				}
-
 				// Parse Commentaire (les virgules sont préservées grâce aux guillemets RFC 4180)
-				let comment = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
+				let comment = columns[2].trimmingCharacters(in: .whitespacesAndNewlines)
 
-				// Parse Catégorie (colonne 5 si présente, sinon .other)
+				// Parse Catégorie (colonne 4 si présente, sinon .other)
 				var category: TransactionCategory = .other
 				var importedCategoryName: String? = nil
-				if columns.count >= 5 {
-					let categoryLabel = columns[4].trimmingCharacters(in: .whitespacesAndNewlines)
+				if columns.count >= 4 {
+					let categoryLabel = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
 					if let matched = TransactionCategory.allCases.first(where: { $0.label == categoryLabel }) {
 						category = matched
 					} else if !categoryLabel.isEmpty {

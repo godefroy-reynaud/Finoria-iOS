@@ -422,9 +422,9 @@ Project facts: iOS 18.0+, SwiftUI + SwiftData + CloudKit, Swift 5 language mode 
 **Methods / Computed vars:**
 | Name | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| generateCSV | rows: [ExportRow], accountName | URL? | Sorts by date desc, writes header `Date,Type,Montant,Commentaire,Statut,Catégorie` + one escaped line per row to a temp file `{account}_transactions_{timestamp}.csv`; nil if empty or write fails |
+| generateCSV | rows: [ExportRow], accountName | URL? | Sorts by date desc, writes header `Date,Montant,Commentaire,Catégorie` + one escaped line per row to a temp file `{account}_transactions_{timestamp}.csv`; nil if empty or write fails. No `Type` column — sign carries the meaning (expense = negative, income = positive); amount uses a comma decimal separator (FR) so it is auto-quoted by `escapeCSVField` |
 | escapeCSVField (private) | field | String | Quotes fields containing `,` `"` or newlines; doubles inner quotes |
-| importCSV | from URL | [Transaction] | Security-scoped read, skips header, parses each line; columns: date `dd/MM/yyyy` or "N/A", type "Revenu"/"Dépense" (sign), amount, comment, status "Potentielle"/"Validée", optional category label (unknown labels stored in `importedCategoryName`). Returns unattached Transaction instances |
+| importCSV | from URL | [Transaction] | Security-scoped read, skips header, parses each line; columns: date `dd/MM/yyyy` or "N/A", signed amount (comma decimal → dot; negative = expense, positive = income), comment, optional category label (unknown labels stored in `importedCategoryName`). Returns unattached Transaction instances |
 | parseCSVLine (private) | line | [String] | Character-by-character RFC 4180 field splitter (quoted fields, `""` escapes) |
 
 **Notes:** Date formatter created once per call (not per line). Line-based parsing cannot reassemble newlines inside quoted fields — impossible from app-generated data (single-line text fields). Import performs **no deduplication** (known limitation). Logs with `print`.
