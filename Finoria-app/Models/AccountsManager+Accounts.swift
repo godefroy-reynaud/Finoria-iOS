@@ -45,6 +45,13 @@ extension AccountsManager {
 		for transaction in account.transactions {
 			modelContext.delete(transaction)
 		}
+		// WHY: On vient de supprimer toutes les transactions (dont les futures
+		// générées par les récurrences). On met les récurrences en pause pour
+		// éviter qu'elles ne regénèrent des transactions ; l'utilisateur les
+		// réactivera manuellement si besoin.
+		for recurring in account.recurringTransactions {
+			recurring.isPaused = true
+		}
 		persist()
 	}
 }
