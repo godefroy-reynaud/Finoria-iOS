@@ -119,7 +119,7 @@ Finoria-iOS/
 
 ## Data Model
 
-All five persisted types are SwiftData `@Model` classes. For CloudKit compatibility, every property has a default value, none is marked unique, and to-one relationships are optional on the child side. The schema is **versioned** (`FinoriaSchemaV1`) and the container is opened with a **migration plan** (`FinoriaMigrationPlan`, with deliberately empty stages) so that additive structural changes migrate existing data automatically instead of discarding it — see *Schema evolution* below.
+All five persisted types are SwiftData `@Model` classes. For CloudKit compatibility, the key Apple constraint is that **relationships must not be required** (to-one relationships should be optional, and relationship minimum counts must stay at 0), and `@Attribute(.unique)` is unsupported. This does **not** mean every stored scalar field (`String`, `Double`, `Bool`, enums, etc.) must be optional; those can stay non-optional when modeled safely (for example with defaults or controlled initialization). The schema is **versioned** (`FinoriaSchemaV1`) and the container is opened with a **migration plan** (`FinoriaMigrationPlan`, with deliberately empty stages) so that additive structural changes migrate existing data automatically instead of discarding it — see *Schema evolution* below.
 
 **Account** is the root entity: an id (UUID), a name (15 chars max), an optional detail line (20 chars max), and a visual style — one of ten `AccountStyle` cases pairing an SF Symbol with a color, guessable from the account name. It owns four cascade-deleting to-many relationships: its transactions, its widget shortcuts, its recurring transactions, and its custom categories. Deleting an account removes everything it contains.
 
@@ -148,8 +148,9 @@ All five persisted types are SwiftData `@Model` classes. For CloudKit compatibil
 1. **Additive changes are easy and safe** — adding a property *with a default value*, a new `@Model`, or an *optional* relationship/inverse is CloudKit-compatible and migrates **automatically**. Just edit the `@Model`s; do **not** add a schema version or a migration stage.
 2. **⚠️ Never add a `MigrationStage` while the `VersionedSchema`s share the same live `@Model` types.** They produce identical schema checksums, so a `.lightweight(V1 → V2)` stage throws in `NSLightweightMigrationStage` and **crashes the app on launch** (this exact regression shipped in build 286 and was reverted). A real staged migration first requires freezing per-version copies of the model definitions.
 3. **CloudKit only allows additive schema changes.** You cannot delete or rename a field server-side. To "rename", add the new field, migrate the data, and keep the old field (deprecated) rather than removing it.
-4. **Test on a device that already holds old-version data** before publishing — it must launch and keep every record.
-5. **Outside the migration plan:** never rename/remove a shipped enum `case` (its `rawValue` is persisted — add cases only), and never change the CloudKit container ID or bundle ID after release.
+4. **Apple CloudKit rule to remember:** for SwiftData sync, relationships must be optional/non-required; scalar properties do not all need to be optional.
+5. **Test on a device that already holds old-version data** before publishing — it must launch and keep every record.
+6. **Outside the migration plan:** never rename/remove a shipped enum `case` (its `rawValue` is persisted — add cases only), and never change the CloudKit container ID or bundle ID after release.
 
 The full step-by-step procedure and a ready-to-copy V2 template live in the header comment of `FinoriaSchema.swift`; each `@Model` also carries a one-line reminder pointing back to it.
 

@@ -1,6 +1,6 @@
 # Finoria — Complete Code Structure Reference
 
-*Last updated: 2026-06-25*
+*Last updated: 2026-07-12*
 
 This file documents **every Swift file** in the project so a developer or AI can understand any class, function, or view without opening the source. Companion overview: [README.md](README.md).
 
@@ -1280,5 +1280,6 @@ Persistence is versioned end-to-end so the data structure can evolve across app 
 - **Additive changes (the normal case):** edit the `@Model`s directly — new defaulted property, new model, new optional relationship/inverse. Do **not** add a schema version or a migration stage; SwiftData's automatic lightweight migration handles it without data loss.
 - **⚠️ Never add a `MigrationStage` between versions that share the same live `@Model` types:** their schema checksums are identical, so `.lightweight(V1 → V2)` throws in `NSLightweightMigrationStage` and **crashes on launch** (build 286 regression — reverted). A real staged migration first requires freezing per-version model copies.
 - **CloudKit constraint:** schema changes must be additive (new properties with defaults, new models, optional relationships). Never delete/rename server-side fields; to "rename", add the new field, migrate the data, keep the old one.
+- **Apple SwiftData + CloudKit compatibility rule (important):** relationships must be non-required (to-one optional, relationship min-count 0). This does **not** mean every non-relationship field must be optional; scalar fields may remain non-optional if modeled safely.
 - **Not covered by the migration plan (manual rules):** (1) enum `rawValue` stability — `category`/`style`/`type`/`frequency` persist by case name, so you may *add* cases but never rename/remove a shipped one (change `label`, not the `case`); (2) frozen identifiers — never change the CloudKit container `iCloud.com.godefroyinformatique.GDF-app` or the bundle ID after release. See the "pitfalls" section in [DATA_MODEL.md](DATA_MODEL.md).
 - **Guardrails:** every `@Model` carries a one-line reminder pointing to `FinoriaSchema.swift`; the file header holds the full procedure and the crash warning. Migrations must be tested against an old-version store before publishing.
