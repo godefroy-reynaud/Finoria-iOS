@@ -25,8 +25,9 @@ final class CustomTransactionCategory {
 	var account: Account?
 
 	/// Transactions rattachées à cette catégorie personnalisée.
+	// WHY (optionnel) : contrainte CloudKit — toute relation doit être optionnelle.
 	@Relationship(deleteRule: .nullify, inverse: \Transaction.customCategory)
-	var transactions: [Transaction] = []
+	var transactions: [Transaction]? = []
 
 	// WHY (inverses explicites) : `WidgetShortcut.customCategory` et
 	// `RecurringTransaction.customCategory` reposaient sur un inverse synthétisé
@@ -38,11 +39,11 @@ final class CustomTransactionCategory {
 
 	/// Raccourcis utilisant cette catégorie personnalisée.
 	@Relationship(deleteRule: .nullify, inverse: \WidgetShortcut.customCategory)
-	var widgetShortcuts: [WidgetShortcut] = []
+	var widgetShortcuts: [WidgetShortcut]? = []
 
 	/// Récurrences utilisant cette catégorie personnalisée.
 	@Relationship(deleteRule: .nullify, inverse: \RecurringTransaction.customCategory)
-	var recurringTransactions: [RecurringTransaction] = []
+	var recurringTransactions: [RecurringTransaction]? = []
 
 	init(
 		id: UUID = UUID(),

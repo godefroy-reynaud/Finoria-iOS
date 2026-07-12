@@ -124,17 +124,22 @@ final class Account {
 	
 	// MARK: - Relations (one-to-many, cascade delete)
 	
+	// WHY (optionnel) : CloudKit exige que TOUTE relation soit optionnelle
+	// (« CloudKit integration requires that all relationships be optional »).
+	// On garde `= []` comme valeur par défaut pour préserver la sémantique
+	// (un nouveau compte a un tableau vide, pas nil) ; les lectures ailleurs
+	// utilisent `?? []`. Changement ADDITIF → migration légère auto (cf. FinoriaSchema).
 	@Relationship(deleteRule: .cascade, inverse: \Transaction.account)
-	var transactions: [Transaction] = []
-	
+	var transactions: [Transaction]? = []
+
 	@Relationship(deleteRule: .cascade, inverse: \WidgetShortcut.account)
-	var widgetShortcuts: [WidgetShortcut] = []
-	
+	var widgetShortcuts: [WidgetShortcut]? = []
+
 	@Relationship(deleteRule: .cascade, inverse: \RecurringTransaction.account)
-	var recurringTransactions: [RecurringTransaction] = []
+	var recurringTransactions: [RecurringTransaction]? = []
 
 	@Relationship(deleteRule: .cascade, inverse: \CustomTransactionCategory.account)
-	var customTransactionCategories: [CustomTransactionCategory] = []
+	var customTransactionCategories: [CustomTransactionCategory]? = []
 	
 	// MARK: - Init
 	

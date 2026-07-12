@@ -17,7 +17,7 @@ extension AccountsManager {
 
 	func customTransactionCategories() -> [CustomTransactionCategory] {
 		guard let account = selectedAccount else { return [] }
-		return account.customTransactionCategories
+		return account.customTransactionCategories ?? []
 	}
 
 	func customTransactionCategory(with id: UUID) -> CustomTransactionCategory? {
@@ -54,7 +54,7 @@ extension AccountsManager {
 		let target = Self.normalizeCategoryName(customCategory.name)
 		guard !target.isEmpty else { return }
 
-		for transaction in account.transactions {
+		for transaction in (account.transactions ?? []) {
 			guard transaction.customCategory == nil,
 				let importedName = transaction.importedCategoryName,
 				Self.normalizeCategoryName(importedName) == target else {

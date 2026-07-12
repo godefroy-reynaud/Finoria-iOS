@@ -41,11 +41,11 @@ struct RecurrenceEngine {
 		for account in accounts {
 			
 			// 1. Générer les transactions potentielles depuis les récurrences actives
-			for recurring in account.recurringTransactions where !recurring.isPaused {
+			for recurring in (account.recurringTransactions ?? []) where !recurring.isPaused {
 				let pending = recurring.pendingTransactions()
-				
+
 				for entry in pending {
-					let alreadyExists = account.transactions.contains { tx in
+					let alreadyExists = (account.transactions ?? []).contains { tx in
 						// WHY: Replaced force unwrap (!) with optional binding via if-let to prevent crashes.
 						// Safely unwraps tx.date before date comparison.
 						if let txDate = tx.date {
@@ -69,7 +69,7 @@ struct RecurrenceEngine {
 			}
 			
 			// 2. Auto-valider les transactions potentielles dont la date prévue est passée
-			for transaction in account.transactions where transaction.potentiel {
+			for transaction in (account.transactions ?? []) where transaction.potentiel {
 				if let date = transaction.date, calendar.startOfDay(for: date) <= startOfToday {
 					transaction.validate(at: date)
 					anyChange = true
@@ -89,7 +89,7 @@ struct RecurrenceEngine {
 	///   - recurring: La récurrence dont les transactions potentielles doivent être supprimées
 	///   - context: Le ModelContext pour supprimer les objets
 	static func removePotentialTransactions(for recurring: RecurringTransaction, context: ModelContext) {
-		let potentials = recurring.generatedTransactions.filter { $0.potentiel }
+		let potentials = (recurring.generatedTransactions ?? []).filter { $0.potentiel }
 		for transaction in potentials {
 			context.delete(transaction)
 		}

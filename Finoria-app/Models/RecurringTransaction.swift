@@ -72,8 +72,9 @@ final class RecurringTransaction {
 	var account: Account?
 	
 	/// Transactions générées par cette récurrence (nullify à la suppression)
+	// WHY (optionnel) : contrainte CloudKit — toute relation doit être optionnelle.
 	@Relationship(deleteRule: .nullify, inverse: \Transaction.sourceRecurringTransaction)
-	var generatedTransactions: [Transaction] = []
+	var generatedTransactions: [Transaction]? = []
 	
 	// MARK: - Init
 	

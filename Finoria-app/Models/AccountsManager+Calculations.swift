@@ -19,12 +19,12 @@ extension AccountsManager {
 		// WHY (FIX D): ces deux helpers reçoivent un compte externe (@Query du
 		// picker) sans passer par selectedAccount — dépendance enregistrée ici.
 		_ = dataVersion
-		return CalculationService.totalNonPotential(transactions: account.transactions)
+		return CalculationService.totalNonPotential(transactions: account.transactions ?? [])
 	}
 
 	func totalPotential(for account: Account) -> Double {
 		_ = dataVersion
-		return CalculationService.totalPotential(transactions: account.transactions)
+		return CalculationService.totalPotential(transactions: account.transactions ?? [])
 	}
 
 	func availableYears() -> [Int] {

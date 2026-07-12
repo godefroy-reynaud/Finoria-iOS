@@ -22,7 +22,7 @@ extension AccountsManager {
 	// (Task.detached dans HomeTabView) sans bloquer l'UI.
 	func csvExportSnapshot() -> (rows: [CSVService.ExportRow], accountName: String)? {
 		guard let account = selectedAccount else { return nil }
-		let rows = account.transactions
+		let rows = (account.transactions ?? [])
 			.filter { !$0.potentiel && $0.sourceRecurringTransaction == nil }
 			.map { transaction in
 				CSVService.ExportRow(
@@ -59,7 +59,7 @@ extension AccountsManager {
 		// import — sans jamais produire de doublon quand plusieurs lignes
 		// partagent le même libellé de catégorie.
 		var customCategoriesByName: [String: CustomTransactionCategory] = [:]
-		for category in account.customTransactionCategories {
+		for category in (account.customTransactionCategories ?? []) {
 			customCategoriesByName[Self.normalizeCategoryName(category.name)] = category
 		}
 
