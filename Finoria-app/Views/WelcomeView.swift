@@ -16,7 +16,7 @@ struct WelcomeView: View {
             icon: "banknote",
             color: .green,
             title: "Gestion multi-comptes",
-            description: "Créez et gérez plusieurs comptes bancaires avec des styles personnalisés."
+            description: "Créez et gérez plusieurs comptes avec des styles personnalisés."
         ),
         Feature(
             icon: "arrow.left.arrow.right",
